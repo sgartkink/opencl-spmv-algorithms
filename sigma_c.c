@@ -6,9 +6,10 @@
 #include <stdbool.h>
 #include <time.h>
 
+#include "mmio.h"
 #include "helper_functions.h"
 
-int main()
+int main(int argc, char *argv[])
 {
     cl_int error;
     cl_uint platformNumber = 0;
@@ -56,7 +57,7 @@ int main()
         for (cl_uint j = 0; j < deviceNumber; ++j)
         {
 //             time_t start,end;
-            double dif;
+//             double dif;
             
             int rows_nr, cols_nr, nonzeros_nr;
             MM_typecode matcode;
@@ -65,7 +66,6 @@ int main()
             double *data_double;
             cl_int *data_int;
             cl_int *col_widths;
-            bool read_database_ret_code;
             
             if ((f = fopen("databases/cant.mtx-sorted", "r")) == NULL) 
             {
@@ -290,7 +290,7 @@ int main()
             }
             
             size_t size;
-            const char *source = read_source_from_cl_file("Sigma_C.cl", &size);
+            const char *source = read_source_from_cl_file("kernels/Sigma_C.cl", &size);
             
             cl_program program = clCreateProgramWithSource(context, 1, &source, &size, &error);
             

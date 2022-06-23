@@ -6,9 +6,10 @@
 #include <stdbool.h>
 #include <time.h>
 
+#include "mmio.h"
 #include "helper_functions.h"
 
-int main()
+int main(int argc, char *argv[])
 {
     cl_int error;
     cl_uint platformNumber = 0;
@@ -61,7 +62,6 @@ int main()
             cl_int *ptr, *cols;
             cl_double *data_double;
             cl_int *data_int;
-            bool read_database_ret_code;
             
             if ((f = fopen("databases/cant.mtx-sorted", "r")) == NULL) 
             {
@@ -164,7 +164,7 @@ int main()
             }
             
             size_t size;
-            const char *source = read_source_from_cl_file("Csr.cl", &size);
+            const char *source = read_source_from_cl_file("kernels/Csr.cl", &size);
             
             cl_program program = clCreateProgramWithSource(context, 1, &source, &size, &error);
             
