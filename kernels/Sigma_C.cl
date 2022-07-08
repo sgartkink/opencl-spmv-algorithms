@@ -1,36 +1,39 @@
-__kernel void sigma_c(__global const int* data, __global const int* indices, __global const int* vect, __global int *output,  __global const int *rowSizes, const int N)
+__kernel void sigma_c(__global const int* data, __global const int* indices, __global const int* vect, __global int *output,  __global const int *rowSizes, const int N, const int C)
 {
-    int gid = get_global_id(0);
-
-    if (gid < N)
+    
+    int i;
+    
+    for (i = get_group_id(0); i < N; i += get_num_groups(0))
     {
-        int i;
+        __local int row_size;
+        row_size = (rowSizes[i + 1] - rowSizes[i]) / C;
+        __private const int current_global_row = (i * C) + j;
+        int j;
         int sum = 0;
-        int index = 0;
         
-        for (i = 0; i < gid; ++i)
+        for (j = get_local_id(0); j < C && ((i * C) + j) < N; j += get_local_size(0))
         {
-            index += rowSizes[i / 5];
-        }
-        
-        for (i = 0; i < rowSizes[gid / 5]; ++i)
-        {
-            int elem_idx = index + i;
+            int k;
+            int current_row_offset = j * row_size;
             
-            if (indices[elem_idx] != -1)
+            for (k = 0; k < row_size; ++k)
             {
-                sum += data[elem_idx] * vect[indices[elem_idx]];
-            }
-            else
-            {
-                break;
-            }
+                int elem_idx = rowSizes[i] + k + current_row_offset;
                 
+                if (indices[elem_idx] != -1)
+                {
+                    sum += data[elem_idx] * vect[indices[elem_idx]];
+                }
+                else
+                {
+                    break;
+                }
+            }
+            
+            output[((i * C) + j)] = sum;
+            sum = 0;
         }
-
-        output[gid] = sum;
-//         printf("%d %d %d\n", output[gid], rowSizes[gid / 5], gid);
+        
+        barrier(CLK_LOCAL_MEM_FENCE);
     }
 }
- 
- 
