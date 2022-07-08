@@ -11,6 +11,9 @@
 
 int main(int argc, char *argv[])
 {
+    (void)argc;
+    (void)argv;
+    
     cl_int error;
     cl_uint platformNumber = 0;
     
@@ -126,8 +129,9 @@ int main(int argc, char *argv[])
                 fclose(f);
             }
             
-            size_t vectorSize = rows_nr; // musi byc podzielne przez localWorkSize
-            size_t localWorkSize = 1; // zmienia to ile leci na raz do jednego kernela?
+            size_t vectorSize[1] = { 256 };
+            size_t localWorkSize[1] = { 1 };
+            cl_uint work_dim = 1;
     
             cl_int *vect = (cl_int*)malloc(sizeof(cl_int*) * cols_nr);
             for (int i = 0; i < cols_nr; ++i) {
@@ -190,25 +194,41 @@ int main(int argc, char *argv[])
                 return 2;
             }
             
-            error = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void*)&buffer_ptr);
-            error = clSetKernelArg(kernel, 1, sizeof(cl_mem), (void*)&buffer_col);
-            error = clSetKernelArg(kernel, 2, sizeof(cl_mem), (void*)&buffer_data);
-            error = clSetKernelArg(kernel, 3, sizeof(cl_mem), (void*)&buffer_vect);
-            error = clSetKernelArg(kernel, 4, sizeof(cl_mem), (void*)&buffer_output);
-            error = clSetKernelArg(kernel, 5, sizeof(int), (void*)&ptr[rows_nr]);
+            error  = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void*)&buffer_ptr);
+            error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), (void*)&buffer_col);
+            error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), (void*)&buffer_data);
+            error |= clSetKernelArg(kernel, 3, sizeof(cl_mem), (void*)&buffer_vect);
+            error |= clSetKernelArg(kernel, 4, sizeof(cl_mem), (void*)&buffer_output);
+            error |= clSetKernelArg(kernel, 5, sizeof(int), (void*)&rows_nr);
+            
+            if (error != CL_SUCCESS)
+            {
+                printf("clSetKernelArg errror\n");
+                return 2;
+            }
             
             error = clEnqueueWriteBuffer(commandQueue, buffer_ptr, CL_FALSE, 0, sizeof(cl_int) * (rows_nr + 1), ptr, 0, NULL, NULL);
-            error = clEnqueueWriteBuffer(commandQueue, buffer_col, CL_FALSE, 0, sizeof(cl_int) * nonzeros_nr, cols, 0, NULL, NULL);
-            error = clEnqueueWriteBuffer(commandQueue, buffer_data, CL_FALSE, 0, sizeof(cl_int) * nonzeros_nr, data_int, 0, NULL, NULL);
-            error = clEnqueueWriteBuffer(commandQueue, buffer_vect, CL_FALSE, 0, sizeof(cl_int) * cols_nr, vect, 0, NULL, NULL);
+            error |= clEnqueueWriteBuffer(commandQueue, buffer_col, CL_FALSE, 0, sizeof(cl_int) * nonzeros_nr, cols, 0, NULL, NULL);
+            error |= clEnqueueWriteBuffer(commandQueue, buffer_data, CL_FALSE, 0, sizeof(cl_int) * nonzeros_nr, data_int, 0, NULL, NULL);
+            error |= clEnqueueWriteBuffer(commandQueue, buffer_vect, CL_FALSE, 0, sizeof(cl_int) * cols_nr, vect, 0, NULL, NULL);
             
             if (error != CL_SUCCESS)
             {
                 printf("clEnqueueWriteBuffer error %d\n", error);
                 return 2;
             }
+            clFinish(commandQueue);
+            
+            cl_event nd_range_kernel_event;
 
-            error = clEnqueueNDRangeKernel(commandQueue, kernel, 1, NULL, &vectorSize, &localWorkSize, 0, NULL, NULL);
+            clock_t start = clock();
+            error = clEnqueueNDRangeKernel(commandQueue, kernel, work_dim, NULL, vectorSize, localWorkSize, 0, NULL, &nd_range_kernel_event);
+            clWaitForEvents(1, &nd_range_kernel_event);
+            clFinish(commandQueue);
+            
+            clock_t end = clock();
+            float ms = (float)(end - start) / (CLOCKS_PER_SEC / 1000);
+            printf("Your calculations took %.2lf ms to run.\n", ms);
 
             if (error != CL_SUCCESS)
             {
@@ -216,8 +236,8 @@ int main(int argc, char *argv[])
                 return 2;
             }
             
-            clock_t start = clock();
             error = clEnqueueReadBuffer(commandQueue, buffer_output, CL_TRUE, 0, sizeof(cl_int) * rows_nr, output, 0, NULL, NULL);
+            clFinish(commandQueue);
             
             if (error != CL_SUCCESS)
             {
@@ -225,19 +245,26 @@ int main(int argc, char *argv[])
                 return 2;
             }
             
-            clock_t end = clock();
-            float ms = (float)(end - start) / (CLOCKS_PER_SEC / 1000);
-            printf("Your calculations took %.2lf ms to run.\n", ms);
-            
 //             for (size_t k = 0; k < rows_nr; ++k)
 //             {
 //                 printf("%ld: %d\n", k, output[k]);
 //             }
+
+            clReleaseMemObject(buffer_ptr);
+            clReleaseMemObject(buffer_col);
+            clReleaseMemObject(buffer_data);
+            clReleaseMemObject(buffer_vect);
+            
+            free(ptr);
+            free(cols);
+            free(data_int);
+            free(data_double);
             
             clFlush(commandQueue);
-            clFinish(commandQueue);
+            clReleaseCommandQueue(commandQueue);
             clReleaseKernel(kernel);
             clReleaseProgram(program);
+            clReleaseContext(context);
             
             i = platformNumber;
             break;

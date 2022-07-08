@@ -31,9 +31,7 @@ mmio.o: $(MMIO_DIR)/mmio.c
 	
 $(TARGETS): % : %.o mmio.o $(HEADERS)
 	@mkdir -p $(BIN_DIR)
-	@echo "Compile $@"
 	$(CC) $(OBJ_DIR)/$< $(OBJ_DIR)/$(word 2,$^) $(CFLAGS) $(LDFLAGS) -o $(BIN_DIR)/$@
-	@echo "$@ compiled"
 	
 clean:
 	$(RM) -r $(OBJ_DIR)

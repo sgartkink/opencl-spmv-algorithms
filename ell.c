@@ -11,6 +11,9 @@
 
 int main(int argc, char *argv[])
 {
+    (void)argc;
+    (void)argv;
+    
     cl_int error;
     cl_uint platformNumber = 0;
     
@@ -144,10 +147,14 @@ int main(int argc, char *argv[])
                 return 0;
             }
             
+            size_t vectorSize[1] = { 256 };
+            size_t localWorkSize[1] = { 2 };
+            cl_uint work_dim = 1;
+            
             /* reseve memory for matrices */
-            cols = malloc(longest_col * rows_nr * sizeof(cl_int));
-            data_int = malloc(longest_col * rows_nr * sizeof(cl_int));
-            data_double = malloc(longest_col * rows_nr * sizeof(cl_double));
+            cols = (cl_int *)malloc(longest_col * rows_nr * sizeof(cl_int));
+            data_int = (cl_int *)malloc(longest_col * rows_nr * sizeof(cl_int));
+            data_double = (cl_double *)malloc(longest_col * rows_nr * sizeof(cl_double));
             
             previous_row = 1;
             int current_index = 0;
@@ -158,8 +165,6 @@ int main(int argc, char *argv[])
                 int current_row;
                 int current_col;
                 fscanf(f, "%d %d %lg\n", &current_row, &current_col, &data_double[current_index]);
-                
-//                 printf("%d %d %lg\n", current_row, current_col, data_double[current_index]);
                 
                 current_col--;
                 
@@ -172,7 +177,6 @@ int main(int argc, char *argv[])
                 }
                 else 
                 {
-//                     printf("%d\n", current_row);
                     long i;
                     int diff = current_row - previous_row;
                     double read_value = data_double[current_index];
@@ -192,16 +196,6 @@ int main(int argc, char *argv[])
                     current_index++;
                 }
             }
-
-//             for (int k = 0; k < rows_nr; ++k)
-//             {
-//                 printf("%d - ", k);
-//                 for (int i = 0; i < longest_col; ++i)
-//                 {
-//                     printf("%d ", cols[i + longest_col *k]);
-//                 }
-//                 printf("\n");
-//             }
             
             for (int i = nonzeroes_in_row; i < longest_col; ++i)
             {
@@ -213,10 +207,6 @@ int main(int argc, char *argv[])
             {
                 fclose(f);
             }
-            
-            
-            size_t vectorSize = rows_nr; // musi byc podzielne przez localWorkSize
-            size_t localWorkSize = 1; // zmienia to ile leci na raz do jednego kernela?
     
             cl_int *vect = (cl_int*)malloc(sizeof(cl_int*) * cols_nr);
             for (int i = 0; i < cols_nr; ++i) {
@@ -278,24 +268,41 @@ int main(int argc, char *argv[])
                 return 2;
             }
             
-            error = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void*)&buffer_data);
-            error = clSetKernelArg(kernel, 1, sizeof(cl_mem), (void*)&buffer_indices);
-            error = clSetKernelArg(kernel, 2, sizeof(cl_mem), (void*)&buffer_vect);
-            error = clSetKernelArg(kernel, 3, sizeof(cl_mem), (void*)&buffer_output);
-            error = clSetKernelArg(kernel, 4, sizeof(int), (void*)&rows_nr);
-            error = clSetKernelArg(kernel, 5, sizeof(int), (void*)&longest_col);
+            error  = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void*)&buffer_data);
+            error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), (void*)&buffer_indices);
+            error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), (void*)&buffer_vect);
+            error |= clSetKernelArg(kernel, 3, sizeof(cl_mem), (void*)&buffer_output);
+            error |= clSetKernelArg(kernel, 4, sizeof(int), (void*)&rows_nr);
+            error |= clSetKernelArg(kernel, 5, sizeof(int), (void*)&longest_col);
+            error |= clSetKernelArg(kernel, 6, localWorkSize[0] * sizeof(cl_int), NULL);
+            
+            if (error != CL_SUCCESS)
+            {
+                printf("clSetKernelArg errror\n");
+                return 2;
+            }
             
             error = clEnqueueWriteBuffer(commandQueue, buffer_data, CL_FALSE, 0, sizeof(cl_int) * longest_col * rows_nr, data_int, 0, NULL, NULL);
-            error = clEnqueueWriteBuffer(commandQueue, buffer_indices, CL_FALSE, 0, sizeof(cl_int) * longest_col * rows_nr, cols, 0, NULL, NULL);
-            error = clEnqueueWriteBuffer(commandQueue, buffer_vect, CL_FALSE, 0, sizeof(cl_int) * cols_nr, vect, 0, NULL, NULL);
+            error |= clEnqueueWriteBuffer(commandQueue, buffer_indices, CL_FALSE, 0, sizeof(cl_int) * longest_col * rows_nr, cols, 0, NULL, NULL);
+            error |= clEnqueueWriteBuffer(commandQueue, buffer_vect, CL_FALSE, 0, sizeof(cl_int) * cols_nr, vect, 0, NULL, NULL);
             
             if (error != CL_SUCCESS)
             {
                 printf("clEnqueueWriteBuffer error %d\n", error);
                 return 2;
             }
+            clFinish(commandQueue);
+            
+            cl_event nd_range_kernel_event;
 
-            error = clEnqueueNDRangeKernel(commandQueue, kernel, 1, NULL, &vectorSize, &localWorkSize, 0, NULL, NULL);
+            clock_t start = clock();
+            error = clEnqueueNDRangeKernel(commandQueue, kernel, work_dim, NULL, vectorSize, localWorkSize, 0, NULL, &nd_range_kernel_event);
+            clWaitForEvents(1, &nd_range_kernel_event);
+            clFinish(commandQueue);
+            
+            clock_t end = clock();
+            float ms = (float)(end - start) / (CLOCKS_PER_SEC / 1000);
+            printf("Your calculations took %.2lf ms to run.\n", ms);
 
             if (error != CL_SUCCESS)
             {
@@ -303,8 +310,8 @@ int main(int argc, char *argv[])
                 return 2;
             }
             
-            clock_t start = clock();
             error = clEnqueueReadBuffer(commandQueue, buffer_output, CL_TRUE, 0, sizeof(cl_int) * rows_nr, output, 0, NULL, NULL);
+            clFinish(commandQueue);
             
             if (error != CL_SUCCESS)
             {
@@ -312,19 +319,25 @@ int main(int argc, char *argv[])
                 return 2;
             }
             
-            clock_t end = clock();
-            float ms = (float)(end - start) / (CLOCKS_PER_SEC / 1000);
-            printf("Your calculations took %.2lf ms to run.\n", ms);
-            
 //             for (size_t k = 0; k < rows_nr; ++k)
 //             {
 //                 printf("%ld: %d\n", k, output[k]);
 //             }
+
+            free(cols);
+            free(data_int);
+            free(data_double);
+            
+            clReleaseMemObject(buffer_data);
+            clReleaseMemObject(buffer_indices);
+            clReleaseMemObject(buffer_vect);
+            clReleaseMemObject(buffer_output);
             
             clFlush(commandQueue);
-            clFinish(commandQueue);
+            clReleaseCommandQueue(commandQueue);
             clReleaseKernel(kernel);
             clReleaseProgram(program);
+            clReleaseContext(context);
             
             i = platformNumber;
             break;
