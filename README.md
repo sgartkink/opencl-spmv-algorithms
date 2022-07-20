@@ -10,9 +10,11 @@
 
 - SELL-C-sigma
 
+- Compressed Multi-Row Sparse Format (CMRS)
+
 ## Build
 
-Run `make coo`, `make csr`, `make ell`, `make sigma_c` or `make` (all) in the root directory to build a specific algorithm.
+Run `make coo`, `make csr`, `make ell`, `make sigma_c`, `make cmrs` or `make` (all) in the root directory to build a specific algorithm.
 
 
 ## Run
@@ -24,6 +26,8 @@ Run `make coo`, `make csr`, `make ell`, `make sigma_c` or `make` (all) in the ro
 - `./bin/ell`
 
 - `./bin/sigma_c`
+
+- `./bin/cmrs`
 
 ## Requirements
 
