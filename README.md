@@ -27,4 +27,4 @@ Run `make coo`, `make csr`, `make ell`, `make sigma_c` or `make` (all) in the ro
 
 ## Requirements
 
-OpenCL >= 2.0
+OpenCL >= 2.2

@@ -8,6 +8,7 @@
 
 #include "mmio.h"
 #include "helper_functions.h"
+#include "enums.h"
 
 int main(int argc, char *argv[])
 {
@@ -123,28 +124,8 @@ int main(int argc, char *argv[])
             fseek(f, 0, SEEK_SET);
 
             if (f == NULL)
+            {
                 return 3;
-            
-            if (mm_read_banner(f, &matcode) != 0)
-            {
-                printf("Could not process Matrix Market banner.\n");
-                return 0;
-            }
-
-            /*  This is how one can screen matrix types if their application */
-            /*  only supports a subset of the Matrix Market data types.      */
-            if (mm_is_complex(matcode) && mm_is_matrix(matcode) && 
-                    mm_is_sparse(matcode))
-            {
-                printf("Sorry, this application does not support ");
-                printf("Market Market type: [%s]\n", mm_typecode_to_str(matcode));
-                return 0;
-            }
-
-            /* find out size of sparse matrix .... */
-            if (mm_read_mtx_crd_size(f, &rows_nr, &cols_nr, &nonzeros_nr) != 0) 
-            {
-                return 0;
             }
             
             size_t vectorSize[1] = { 256 };
@@ -324,14 +305,14 @@ int main(int argc, char *argv[])
 //                 printf("%ld: %d\n", k, output[k]);
 //             }
 
-            free(cols);
-            free(data_int);
-            free(data_double);
-            
             clReleaseMemObject(buffer_data);
             clReleaseMemObject(buffer_indices);
             clReleaseMemObject(buffer_vect);
             clReleaseMemObject(buffer_output);
+
+            free(cols);
+            free(data_int);
+            free(data_double);
             
             clFlush(commandQueue);
             clReleaseCommandQueue(commandQueue);

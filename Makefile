@@ -10,8 +10,8 @@ BIN_DIR  = $(APP_PATH)/bin
 MMIO_DIR = $(APP_PATH)/mmio
 OBJ_DIR  = $(APP_PATH)/obj
 
-TARGETS = coo csr ell sigma_c
-HEADERS = $(INC_DIR)/helper_functions.h
+TARGETS = coo csr ell sigma_c cmrs
+HEADERS = $(INC_DIR)/helper_functions.h $(INC_DIR)/enums.h
 
 INCLUDES = -I$(MMIO_DIR) -I$(INC_DIR)
 LDFLAGS  = -L$(LIB_PATH) -l:$(LIB_NAME)

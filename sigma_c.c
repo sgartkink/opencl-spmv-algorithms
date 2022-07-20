@@ -174,29 +174,7 @@ int main(int argc, char *argv[])
             {
                 return 3;
             }
-            
-            if (mm_read_banner(f, &matcode) != 0)
-            {
-                printf("Could not process Matrix Market banner.\n");
-                return 0;
-            }
 
-            /*  This is how one can screen matrix types if their application */
-            /*  only supports a subset of the Matrix Market data types.      */
-            if (mm_is_complex(matcode) && mm_is_matrix(matcode) && 
-                    mm_is_sparse(matcode))
-            {
-                printf("Sorry, this application does not support ");
-                printf("Market Market type: [%s]\n", mm_typecode_to_str(matcode));
-                return 0;
-            }
-
-            /* find out size of sparse matrix .... */
-            if (mm_read_mtx_crd_size(f, &rows_nr, &cols_nr, &nonzeros_nr) != 0) 
-            {
-                return 0;
-            }
-            
             cols_sum = current_length;
             
             /* reseve memory for matrices */

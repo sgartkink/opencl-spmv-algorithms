@@ -1,7 +1,11 @@
+#ifndef _HELPER_FUNCTIONS_H
+#define _HELPER_FUNCTIONS_H
+
 #define CL_TARGET_OPENCL_VERSION 220
 #include <CL/cl.h>
 
 #include "mmio.h"
+#include "enums.h"
 
 char* read_source_from_cl_file(const char *file, size_t *size) 
 {
@@ -52,12 +56,13 @@ void readProgramBuildInfo(cl_program program, cl_device_id device)
     size_t log_size;
     clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
 
-    // Allocate memory for the log
     char *log = (char *)malloc(log_size);
 
-    // Get the log
     clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size, log, NULL);
 
-    // Print the log
     printf("%s\n", log);
+    
+    free(log);
 }
+
+#endif /* _HELPER_FUNCTIONS_H */
