@@ -1,4 +1,4 @@
-# opencl-spmv-algorithms
+# WIP: opencl-spmv-algorithms
 
 ## Implemented algorithms
 

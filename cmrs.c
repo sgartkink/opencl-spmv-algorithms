@@ -7,7 +7,6 @@
 #include <time.h>
 #include <math.h>
 
-#include "mmio.h"
 #include "helper_functions.h"
 #include "enums.h"
 
@@ -26,69 +25,61 @@ int main(int argc, char *argv[])
         
     for (cl_uint device_number = 0; device_number < number_of_devices; ++device_number)
     {
-        int rows_nr; 
-        int cols_nr;
-        int nonzeros_nr;
-        MM_typecode matcode;
-        FILE *f;
+        int number_of_rows; 
+        int number_of_columns;
+        int number_of_nonzeroes;
+        FILE *file;
+        int i;
         cl_int *cols;
-        cl_double *data_double;
-        cl_int *data_int;
+        cl_int *data;
         cl_int *strip_ptr;
         cl_int *row_in_strip;
+        cl_int *vect;
+        cl_int *output;
         int height = 16;
+        const char *filename = "databases/cant.mtx-sorted";
         
-        if ((f = fopen("databases/cant/cant.mtx-sorted", "r")) == NULL) 
-        {
-            return 0;
-        }
-        
-        if (mm_read_banner(f, &matcode) != 0)
-        {
-            printf("Could not process Matrix Market banner.\n");
-            return 0;
-        }
-
-        /*  This is how one can screen matrix types if their application */
-        /*  only supports a subset of the Matrix Market data types.      */
-        if (mm_is_complex(matcode) && mm_is_matrix(matcode) && 
-                mm_is_sparse(matcode))
-        {
-            printf("Sorry, this application does not support ");
-            printf("Market Market type: [%s]\n", mm_typecode_to_str(matcode));
-            return 0;
-        }
-
-        /* find out size of sparse matrix .... */
-        if (mm_read_mtx_crd_size(f, &rows_nr, &cols_nr, &nonzeros_nr) != 0) 
-        {
-            return 0;
-        }
-        
-        size_t vectorSize[1] = { 256 };
-        size_t localWorkSize[1] = { height };
+        size_t vector_size[1] = { 256 };
+        size_t local_work_size[1] = { 1 };
         cl_uint work_dim = 1;
+        
+        
+        /* prepare data for calculations */
+        
+        file = fopen(filename, "r");
+        
+        if (file == NULL) 
+        {
+            perror(filename);
+            return FileError;
+        }
+        
+        if (read_size_of_matrix_from_file(file, &number_of_rows, &number_of_columns, &number_of_nonzeroes) == false)
+        {
+            fclose(file);
+            return FileError;
+        }
 
-        /* reseve memory for matrices */
-        cols = (cl_int *)malloc(nonzeros_nr * sizeof(cl_int));
-        data_int = (cl_int *)malloc(nonzeros_nr * sizeof(cl_int));
-        data_double = (cl_double *)malloc(nonzeros_nr * sizeof(cl_double));
-        strip_ptr = (cl_int *)malloc((ceil(rows_nr / height) + 1) * sizeof(cl_int));
-        row_in_strip = (cl_int *)malloc(nonzeros_nr * sizeof(cl_int));
+        cols         = (cl_int *)malloc(number_of_nonzeroes * sizeof(cl_int));
+        data         = (cl_int *)malloc(number_of_nonzeroes * sizeof(cl_int));
+        strip_ptr    = (cl_int *)malloc((ceil(number_of_rows / height) + 1) * sizeof(cl_int));
+        row_in_strip = (cl_int *)malloc(number_of_nonzeroes * sizeof(cl_int));
         
         strip_ptr[0] = 0;
         
         int previous_row = 1;
         int current_strip_row = 0;
         int strip_index = 1;
-        for (int i = 0; i < nonzeros_nr; i++)
+        for (i = 0; i < number_of_nonzeroes; i++)
         {
             int current_row;
             int current_col;
-            fscanf(f, "%d %d %lg\n", &current_row, &current_col, &data_double[i]);
+            double value;
+            
+            fscanf(file, "%d %d %lg\n", &current_row, &current_col, &value);
             
             current_col--;
-            data_int[i] = (int)data_double[i];
+            data[i] = (int)value;
             cols[i] = current_col;
             
             if (previous_row == current_row)
@@ -114,65 +105,72 @@ int main(int argc, char *argv[])
             }
         }
         
-        if (f != stdin) 
-        {
-            fclose(f);
-        }
+        fclose(file);
         
-        strip_ptr[(int)(ceil(rows_nr / height))] = nonzeros_nr;
+        strip_ptr[(int)(ceil(number_of_rows / height))] = number_of_nonzeroes;
 
-        cl_int *vect = (cl_int*)malloc(sizeof(cl_int*) * cols_nr);
-        for (int i = 0; i < cols_nr; ++i) {
-            vect[i] = 1;
+        vect = (cl_int*)malloc(sizeof(cl_int*) * number_of_columns);
+        for (i = 0; i < number_of_columns; ++i) 
+        {
+            vect[i] = 2;
         }
-        cl_int *output = (cl_int*)malloc(sizeof(cl_int) * rows_nr);
         
-        cl_context context = clCreateContext(0, device_number, device_ids, NULL, NULL, NULL);
+        output = (cl_int*)malloc(sizeof(cl_int) * number_of_rows);
+        
+        
+        /* prepare OpenCL program */
+        
+        cl_context context = clCreateContext(0, number_of_devices, device_ids, NULL, NULL, NULL);
         
         if (NULL == context)
         {
             printf("context is null\n");
-            return 2;
+            return OpenCLProgramError;
         }
         
-        cl_command_queue commandQueue = clCreateCommandQueueWithProperties(context, device_ids[0], 0, &error);
+        cl_command_queue command_queue = clCreateCommandQueueWithProperties(context, device_ids[0], 0, &error);
         
         if (error != CL_SUCCESS)
         {
             printf("clCreateCommandQueueWithProperties error %d\n", error);
-            return 2;
+            return OpenCLProgramError;
         }
         
-        cl_mem buffer_data = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * nonzeros_nr, NULL, &error);
-        cl_mem buffer_indices = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int *) * nonzeros_nr, NULL, &error);
-        cl_mem buffer_vect = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * cols_nr, NULL, &error);
-        cl_mem buffer_strip_ptr = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * (ceil(rows_nr / height) + 1), NULL, &error);
-        cl_mem buffer_row_in_strip = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * nonzeros_nr, NULL, &error);
-        cl_mem buffer_output = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_int) * rows_nr, NULL, &error);
+        cl_mem buffer_data         = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * number_of_nonzeroes, NULL, &error);
+        cl_mem buffer_indices      = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int *) * number_of_nonzeroes, NULL, &error);
+        cl_mem buffer_vect         = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * number_of_columns, NULL, &error);
+        cl_mem buffer_strip_ptr    = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * (ceil(number_of_rows / height) + 1), NULL, &error);
+        cl_mem buffer_row_in_strip = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * number_of_nonzeroes, NULL, &error);
+        cl_mem buffer_output       = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_int) * number_of_rows, NULL, &error);
         
         if (error != CL_SUCCESS)
         {
             printf("clCreateBuffer error %d\n", error);
-            return 2;
+            return OpenCLProgramError;
         }
         
-        size_t size;
-        const char *source = read_source_from_cl_file("kernels/Cmrs.cl", &size);
+        size_t size_of_cl_file;
+        char *source = read_source_from_cl_file("kernels/Cmrs.cl", &size_of_cl_file);
         
-        cl_program program = clCreateProgramWithSource(context, 1, &source, &size, &error);
+        if (source == NULL)
+        {
+            return FileError;
+        }
+        
+        cl_program program = clCreateProgramWithSource(context, 1, (const char **)&source, &size_of_cl_file, &error);
         
         if (error != CL_SUCCESS)
         {
             printf("clCreateProgramWithSource error %d\n", error);
-            return 2;
+            return OpenCLProgramError;
         }
         
         error = clBuildProgram(program, 0, NULL, NULL, NULL, NULL);
         
         if (error != CL_SUCCESS)
         {
-            readProgramBuildInfo(program, device_ids[0]);
-            return 2;
+            read_build_program_info(program, device_ids[0]);
+            return OpenCLProgramError;
         }
         
         cl_kernel kernel = clCreateKernel(program, "cmrs", &error);
@@ -180,10 +178,13 @@ int main(int argc, char *argv[])
         if (error != CL_SUCCESS)
         {
             printf("clCreateKernel error %d\n", error);
-            return 2;
+            return OpenCLProgramError;
         }
         
-        int strip_ptr_size = (ceil(rows_nr / height) + 1);
+        
+        /* set data to kernel */
+        
+        int strip_ptr_size = (ceil(number_of_rows / height) + 1);
         
         error  = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void*)&buffer_data);
         error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), (void*)&buffer_indices);
@@ -193,33 +194,36 @@ int main(int argc, char *argv[])
         error |= clSetKernelArg(kernel, 5, sizeof(cl_mem), (void*)&buffer_output);
         error |= clSetKernelArg(kernel, 6, sizeof(int), (void*)&strip_ptr_size);
         error |= clSetKernelArg(kernel, 7, sizeof(int), (void*)&height);
-        error |= clSetKernelArg(kernel, 8, localWorkSize[0] * height * sizeof(cl_int), NULL);
+        error |= clSetKernelArg(kernel, 8, local_work_size[0] * height * sizeof(cl_int), NULL);
         
         if (error != CL_SUCCESS)
         {
             printf("clSetKernelArg errror\n");
-            return 2;
+            return OpenCLProgramError;
         }
         
-        error = clEnqueueWriteBuffer(commandQueue, buffer_data, CL_FALSE, 0, sizeof(cl_int) * nonzeros_nr, data_int, 0, NULL, NULL);
-        error |= clEnqueueWriteBuffer(commandQueue, buffer_indices, CL_FALSE, 0, sizeof(cl_int) * nonzeros_nr, cols, 0, NULL, NULL);
-        error |= clEnqueueWriteBuffer(commandQueue, buffer_strip_ptr, CL_FALSE, 0, sizeof(cl_int) * (ceil(rows_nr / height) + 1), strip_ptr, 0, NULL, NULL);
-        error |= clEnqueueWriteBuffer(commandQueue, buffer_row_in_strip, CL_FALSE, 0, sizeof(cl_int) * nonzeros_nr, row_in_strip, 0, NULL, NULL);
-        error |= clEnqueueWriteBuffer(commandQueue, buffer_vect, CL_FALSE, 0, sizeof(cl_int) * cols_nr, vect, 0, NULL, NULL);
+        error  = clEnqueueWriteBuffer(command_queue, buffer_data, CL_FALSE, 0, sizeof(cl_int) * number_of_nonzeroes, data, 0, NULL, NULL);
+        error |= clEnqueueWriteBuffer(command_queue, buffer_indices, CL_FALSE, 0, sizeof(cl_int) * number_of_nonzeroes, cols, 0, NULL, NULL);
+        error |= clEnqueueWriteBuffer(command_queue, buffer_strip_ptr, CL_FALSE, 0, sizeof(cl_int) * (ceil(number_of_rows / height) + 1), strip_ptr, 0, NULL, NULL);
+        error |= clEnqueueWriteBuffer(command_queue, buffer_row_in_strip, CL_FALSE, 0, sizeof(cl_int) * number_of_nonzeroes, row_in_strip, 0, NULL, NULL);
+        error |= clEnqueueWriteBuffer(command_queue, buffer_vect, CL_FALSE, 0, sizeof(cl_int) * number_of_columns, vect, 0, NULL, NULL);
         
         if (error != CL_SUCCESS)
         {
             printf("clEnqueueWriteBuffer error %d\n", error);
-            return 2;
+            return OpenCLProgramError;
         }
-        clFinish(commandQueue);
+        clFinish(command_queue);
+        
+        
+        /* run program */
         
         cl_event nd_range_kernel_event;
 
         clock_t start = clock();
-        error = clEnqueueNDRangeKernel(commandQueue, kernel, work_dim, NULL, vectorSize, localWorkSize, 0, NULL, &nd_range_kernel_event);
+        error = clEnqueueNDRangeKernel(command_queue, kernel, work_dim, NULL, vector_size, local_work_size, 0, NULL, &nd_range_kernel_event);
         clWaitForEvents(1, &nd_range_kernel_event);
-        clFinish(commandQueue);
+        clFinish(command_queue);
         
         clock_t end = clock();
         float ms = (float)(end - start) / (CLOCKS_PER_SEC / 1000);
@@ -228,36 +232,46 @@ int main(int argc, char *argv[])
         if (error != CL_SUCCESS)
         {
             printf("clEnqueueNDRangeKernel error %d\n", error);
-            return 2;
+            return OpenCLProgramError;
         }
         
-        error = clEnqueueReadBuffer(commandQueue, buffer_output, CL_TRUE, 0, sizeof(cl_int) * rows_nr, output, 0, NULL, NULL);
-        clFinish(commandQueue);
+        
+        /* read output */
+        
+        error = clEnqueueReadBuffer(command_queue, buffer_output, CL_TRUE, 0, sizeof(cl_int) * number_of_rows, output, 0, NULL, NULL);
+        clFinish(command_queue);
         
         if (error != CL_SUCCESS)
         {
             printf("clEnqueueReadBuffer error %d\n", error);
-            return 2;
+            return OpenCLProgramError;
         }
         
-//             for (size_t k = 0; k < rows_nr; ++k)
-//             {
-//                 printf("%ld: %d\n", k, output[k]);
-//             }
+//         for (i = 0; i < number_of_rows; ++i)
+//         {
+//             printf("%d: %d\n", i, output[i]);
+//         }
+
+
+        /* release memory */
 
         clReleaseMemObject(buffer_data);
         clReleaseMemObject(buffer_indices);
         clReleaseMemObject(buffer_vect);
+        clReleaseMemObject(buffer_strip_ptr);
+        clReleaseMemObject(buffer_row_in_strip);
         clReleaseMemObject(buffer_output);
 
         free(cols);
-        free(data_int);
-        free(data_double);
+        free(data);
         free(strip_ptr);
         free(row_in_strip);
+        free(vect);
+        free(output);
+        free(source);
         
-        clFlush(commandQueue);
-        clReleaseCommandQueue(commandQueue);
+        clFlush(command_queue);
+        clReleaseCommandQueue(command_queue);
         clReleaseKernel(kernel);
         clReleaseProgram(program);
         clReleaseContext(context);
@@ -265,5 +279,5 @@ int main(int argc, char *argv[])
         break;
     }
     
-    return 0;
+    return Success;
 }

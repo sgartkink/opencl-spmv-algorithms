@@ -6,7 +6,6 @@
 #include <stdbool.h>
 #include <time.h>
 
-#include "mmio.h"
 #include "helper_functions.h"
 #include "enums.h"
 
@@ -28,77 +27,67 @@ int main(int argc, char *argv[])
         
     for (cl_uint device_number = 0; device_number < number_of_devices; ++device_number)
     {
-        int rows_nr; 
-        int cols_nr;
-        int nonzeros_nr;
+        int number_of_rows;
+        int number_of_columns;
+        int number_of_nonzeroes;
         int i;
-        MM_typecode matcode;
-        FILE *f;
+        FILE *file;
         cl_int *rows;
         cl_int *cols;
-        cl_double *data_double;
-        cl_int *data_int;
+        cl_int *data;
         cl_int *vect;
         cl_int *output;
+        const char *filename = "databases/cant.mtx";
         
-        size_t vectorSize[1] = { nonzeros_nr };
-        size_t localWorkSize[1] = { 1 };
+        size_t vector_size[1];
+        size_t local_work_size[1] = { 1 };
         cl_uint work_dim = 1;
         
-        if ((f = fopen("databases/cant.mtx", "r")) == NULL) 
+        
+        /* prepare data for calculations */
+        
+        file = fopen(filename, "r");
+        
+        if (file == NULL) 
         {
-            return OtherError;
+            perror(filename);
+            return FileError;
         }
         
-        if (mm_read_banner(f, &matcode) != 0)
+        if (read_size_of_matrix_from_file(file, &number_of_rows, &number_of_columns, &number_of_nonzeroes) == false)
         {
-            printf("Could not process Matrix Market banner.\n");
-            return OtherError;
+            fclose(file);
+            return FileError;
         }
+        
+        vector_size[0] = number_of_nonzeroes;
 
-        /*  This is how one can screen matrix types if their application */
-        /*  only supports a subset of the Matrix Market data types.      */
-        if (mm_is_complex(matcode) && mm_is_matrix(matcode) && 
-                mm_is_sparse(matcode))
+        rows = (cl_int *)malloc(number_of_nonzeroes * sizeof(cl_int));
+        cols = (cl_int *)malloc(number_of_nonzeroes * sizeof(cl_int));
+        data = (cl_int *)malloc(number_of_nonzeroes * sizeof(cl_int));
+
+        for (i = 0; i < number_of_nonzeroes; i++)
         {
-            printf("Sorry, this application does not support ");
-            printf("Market Market type: [%s]\n", mm_typecode_to_str(matcode));
-            return OtherError;
-        }
-
-        /* find out size of sparse matrix .... */
-        if (mm_read_mtx_crd_size(f, &rows_nr, &cols_nr, &nonzeros_nr) != 0) 
-        {
-            return OtherError;
-        }
-
-        /* reseve memory for matrices */
-        rows = (cl_int *)malloc(nonzeros_nr * sizeof(cl_int));
-        cols = (cl_int *)malloc(nonzeros_nr * sizeof(cl_int));
-        data_int = (cl_int *)malloc(nonzeros_nr * sizeof(cl_int));
-        data_double = (cl_double *)malloc(nonzeros_nr * sizeof(cl_double));
-
-        /* NOTE: when reading in doubles, ANSI C requires the use of the "l"  */
-        /* specifier as in "%lg", "%lf", "%le", otherwise errors will occur   */
-        /* (ANSI C X3.159-1989, Sec. 4.9.6.2, p. 136 lines 13-15)             */
-        for (i = 0; i < nonzeros_nr; i++)
-        {
-            fscanf(f, "%d %d %lg\n", &rows[i], &cols[i], &data_double[i]);
-            rows[i]--;  /* adjust from 1-based to 0-based */
+            double value;
+            
+            fscanf(file, "%d %d %lg\n", &rows[i], &cols[i], &value);
+            rows[i]--;  // adjust from 1-based to 0-based
             cols[i]--;
-            data_int[i] = (int)data_double[i];
+            data[i] = (int)value;
         }
     
-        if (f != stdin) 
-        {
-            fclose(f);
-        }
+        fclose(file);
 
-        vect = (cl_int*)malloc(sizeof(cl_int*) * cols_nr);
-        for (i = 0; i < cols_nr; ++i) {
+        vect = (cl_int*)malloc(sizeof(cl_int*) * number_of_columns);
+        for (i = 0; i < number_of_columns; ++i) 
+        {
             vect[i] = 2;
         }
-        output = (cl_int*)malloc(sizeof(cl_int) * rows_nr);
+        
+        output = (cl_int*)malloc(sizeof(cl_int) * number_of_rows);
+        
+        
+        /* prepare OpenCL program */
         
         cl_context context = clCreateContext(0, number_of_devices, device_ids, NULL, NULL, NULL);
         
@@ -116,11 +105,11 @@ int main(int argc, char *argv[])
             return OpenCLProgramError;
         }
         
-        cl_mem buffer_row = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * nonzeros_nr, NULL, &error);
-        cl_mem buffer_col = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * nonzeros_nr, NULL, &error);
-        cl_mem buffer_data = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * nonzeros_nr, NULL, &error);
-        cl_mem buffer_vect = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * cols_nr, NULL, &error);
-        cl_mem buffer_output = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_int) * rows_nr, NULL, &error);
+        cl_mem buffer_row    = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * number_of_nonzeroes, NULL, &error);
+        cl_mem buffer_col    = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * number_of_nonzeroes, NULL, &error);
+        cl_mem buffer_data   = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * number_of_nonzeroes, NULL, &error);
+        cl_mem buffer_vect   = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * number_of_columns, NULL, &error);
+        cl_mem buffer_output = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_int) * number_of_rows, NULL, &error);
         
         if (error != CL_SUCCESS)
         {
@@ -128,10 +117,15 @@ int main(int argc, char *argv[])
             return OpenCLProgramError;
         }
         
-        size_t size;
-        const char *source = read_source_from_cl_file("kernels/Coo.cl", &size);
+        size_t size_of_cl_file;
+        char *source = read_source_from_cl_file("kernels/Coo.cl", &size_of_cl_file);
         
-        cl_program program = clCreateProgramWithSource(context, 1, &source, &size, &error);
+        if (source == NULL)
+        {
+            return FileError;
+        }
+        
+        cl_program program = clCreateProgramWithSource(context, 1, (const char **)&source, &size_of_cl_file, &error);
         
         if (error != CL_SUCCESS)
         {
@@ -143,7 +137,7 @@ int main(int argc, char *argv[])
         
         if (error != CL_SUCCESS)
         {
-            readProgramBuildInfo(program, device_ids[0]);
+            read_build_program_info(program, device_ids[0]);
             return OpenCLProgramError;
         }
         
@@ -155,12 +149,15 @@ int main(int argc, char *argv[])
             return OpenCLProgramError;
         }
         
+        
+        /* set data to kernel */
+        
         error  = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void*)&buffer_row);
         error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), (void*)&buffer_col);
         error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), (void*)&buffer_data);
         error |= clSetKernelArg(kernel, 3, sizeof(cl_mem), (void*)&buffer_vect);
         error |= clSetKernelArg(kernel, 4, sizeof(cl_mem), (void*)&buffer_output);
-        error |= clSetKernelArg(kernel, 5, sizeof(int), (void*)&nonzeros_nr);
+        error |= clSetKernelArg(kernel, 5, sizeof(int), (void*)&number_of_nonzeroes);
         
         if (error != CL_SUCCESS)
         {
@@ -168,10 +165,10 @@ int main(int argc, char *argv[])
             return OpenCLProgramError;
         }
         
-        error  = clEnqueueWriteBuffer(command_queue, buffer_row, CL_FALSE, 0, sizeof(cl_int) * nonzeros_nr, rows, 0, NULL, NULL);
-        error |= clEnqueueWriteBuffer(command_queue, buffer_col, CL_FALSE, 0, sizeof(cl_int) * nonzeros_nr, cols, 0, NULL, NULL);
-        error |= clEnqueueWriteBuffer(command_queue, buffer_data, CL_FALSE, 0, sizeof(cl_int) * nonzeros_nr, data_int, 0, NULL, NULL);
-        error |= clEnqueueWriteBuffer(command_queue, buffer_vect, CL_FALSE, 0, sizeof(cl_int) * cols_nr, vect, 0, NULL, NULL);
+        error  = clEnqueueWriteBuffer(command_queue, buffer_row, CL_FALSE, 0, sizeof(cl_int) * number_of_nonzeroes, rows, 0, NULL, NULL);
+        error |= clEnqueueWriteBuffer(command_queue, buffer_col, CL_FALSE, 0, sizeof(cl_int) * number_of_nonzeroes, cols, 0, NULL, NULL);
+        error |= clEnqueueWriteBuffer(command_queue, buffer_data, CL_FALSE, 0, sizeof(cl_int) * number_of_nonzeroes, data, 0, NULL, NULL);
+        error |= clEnqueueWriteBuffer(command_queue, buffer_vect, CL_FALSE, 0, sizeof(cl_int) * number_of_columns, vect, 0, NULL, NULL);
         
         if (error != CL_SUCCESS)
         {
@@ -180,10 +177,13 @@ int main(int argc, char *argv[])
         }
         clFinish(command_queue);
         
+        
+        /* run program */
+        
         cl_event nd_range_kernel_event;
 
         clock_t start = clock();
-        error = clEnqueueNDRangeKernel(command_queue, kernel, work_dim, NULL, vectorSize, localWorkSize, 0, NULL, &nd_range_kernel_event);
+        error = clEnqueueNDRangeKernel(command_queue, kernel, work_dim, NULL, vector_size, local_work_size, 0, NULL, &nd_range_kernel_event);
         
         clWaitForEvents(1, &nd_range_kernel_event);
         clFinish(command_queue);
@@ -198,7 +198,10 @@ int main(int argc, char *argv[])
             return OpenCLProgramError;
         }
         
-        error = clEnqueueReadBuffer(command_queue, buffer_output, CL_TRUE, 0, sizeof(cl_int) * rows_nr, output, 0, NULL, NULL);
+        
+        /* read output */
+        
+        error = clEnqueueReadBuffer(command_queue, buffer_output, CL_TRUE, 0, sizeof(cl_int) * number_of_rows, output, 0, NULL, NULL);
         clFinish(command_queue);
         
         if (error != CL_SUCCESS)
@@ -207,10 +210,13 @@ int main(int argc, char *argv[])
             return OpenCLProgramError;
         }
 
-//             for (size_t k = 0; k < rows_nr; ++k)
-//             {
-//                 printf("%ld: %d\n", k, output[k]);
-//             }
+//         for (i = 0; i < number_of_rows; ++i)
+//         {
+//             printf("%d: %d\n", i, output[i]);
+//         }
+
+        
+        /* release memory */
 
         clReleaseMemObject(buffer_row);
         clReleaseMemObject(buffer_col);
@@ -219,10 +225,10 @@ int main(int argc, char *argv[])
         
         free(rows);
         free(cols);
-        free(data_int);
-        free(data_double);
+        free(data);
         free(vect);
         free(output);
+        free(source);
         
         clFlush(command_queue);
         clReleaseCommandQueue(command_queue);

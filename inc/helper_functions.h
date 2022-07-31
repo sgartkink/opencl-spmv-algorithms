@@ -18,36 +18,36 @@ char* read_source_from_cl_file(const char *file, size_t *size)
     if (fp == NULL) 
     {
         printf("Could not open kernel file\n");
-        exit(-1);
+        return NULL;
     }
     
     status = fseek(fp, 0, SEEK_END);
     if (status != 0) 
     {
         printf("Error seeking to end of file\n");
-        exit(-1);
+        return NULL;
     }
     
     *size = ftell(fp);
     if (*size < 0) 
     {
         printf("Error getting file position\n");
-        exit(-1);
+        return NULL;
     }
 
     rewind(fp);
 
     source = (char *)malloc(*size + 1);
 
-    for (i = 0; i < *size+1; i++) 
-    {
-        source[i] = '\0';
-    }
-
     if (source == NULL) 
     {
         printf("Error allocating space for the kernel source\n");
-        exit(-1);
+        return NULL;
+    }
+    
+    for (i = 0; i < *size+1; i++) 
+    {
+        source[i] = '\0';
     }
 
     fread(source, 1, *size, fp);
@@ -56,7 +56,7 @@ char* read_source_from_cl_file(const char *file, size_t *size)
     return source;
 } 
 
-void readProgramBuildInfo(cl_program program, cl_device_id device)
+void read_build_program_info(cl_program program, cl_device_id device)
 {
     size_t log_size;
     clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, NULL, &log_size);
@@ -123,6 +123,39 @@ cl_int get_device_ids(cl_device_id *device_ids, cl_uint *number_of_devices)
     free(platform_ids);
     
     return error;
+}
+
+bool read_size_of_matrix_from_file(FILE *file, int *number_of_rows, int *number_of_columns, int *number_of_nonzeroes)
+{
+    MM_typecode matcode;
+    
+    if (file == NULL)
+    {
+        return false;
+    }
+    
+    if (mm_read_banner(file, &matcode) != 0)
+    {
+        printf("Could not process Matrix Market banner.\n");
+        return false;
+    }
+
+    /*  This is how one can screen matrix types if their application */
+    /*  only supports a subset of the Matrix Market data types.      */
+    if (mm_is_complex(matcode) && mm_is_matrix(matcode) && mm_is_sparse(matcode))
+    {
+        printf("Sorry, this application does not support ");
+        printf("Market Market type: [%s]\n", mm_typecode_to_str(matcode));
+        return false;
+    }
+
+    /* find out size of sparse matrix .... */
+    if (mm_read_mtx_crd_size(file, number_of_rows, number_of_columns, number_of_nonzeroes) != 0) 
+    {
+        return false;
+    }
+    
+    return true;
 }
 
 #endif /* _HELPER_FUNCTIONS_H */
