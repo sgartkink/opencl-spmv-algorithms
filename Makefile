@@ -15,7 +15,7 @@ HEADERS = $(INC_DIR)/helper_functions.h $(INC_DIR)/enums.h
 
 INCLUDES = -I$(MMIO_DIR) -I$(INC_DIR)
 LDFLAGS  = -L$(LIB_PATH) -l:$(LIB_NAME)
-CFLAGS   = -Wall -Werror
+CFLAGS   = -Wall -Werror -g
 
 default: all
 
