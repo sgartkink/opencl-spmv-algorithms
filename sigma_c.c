@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
             return FileError;
         }
         
-        if (read_size_of_matrix_from_file(file, &number_of_rows, &number_of_columns, &number_of_nonzeroes) == false)
+        if (read_size_of_matrices_from_file(file, &number_of_rows, &number_of_columns, &number_of_nonzeroes) == false)
         {
             fclose(file);
             return FileError;
@@ -135,7 +135,17 @@ int main(int argc, char *argv[])
             row_indices[i+1] = current_length;
         }
 
-        fseek(file, 0, SEEK_SET);
+        if (fseek(file, 0, SEEK_SET) != 0) 
+        {
+            perror(filename);
+            return FileError;
+        }
+        
+        if (read_size_of_matrices_from_file(file, &number_of_rows, &number_of_columns, &number_of_nonzeroes) == false)
+        {
+            fclose(file);
+            return FileError;
+        }
 
         cols_sum = current_length;
         
@@ -333,10 +343,10 @@ int main(int argc, char *argv[])
         
         /* read output */
         
-        for (i = 0; i < number_of_rows; ++i)
-        {
-            printf("%d: %d\n", i, output[i]);
-        }
+//         for (i = 0; i < number_of_rows; ++i)
+//         {
+//             printf("%d: %d\n", i, output[i]);
+//         }
 
         clReleaseMemObject(buffer_data);
         clReleaseMemObject(buffer_indices);

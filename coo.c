@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
             return FileError;
         }
         
-        if (read_size_of_matrix_from_file(file, &number_of_rows, &number_of_columns, &number_of_nonzeroes) == false)
+        if (read_size_of_matrices_from_file(file, &number_of_rows, &number_of_columns, &number_of_nonzeroes) == false)
         {
             fclose(file);
             return FileError;

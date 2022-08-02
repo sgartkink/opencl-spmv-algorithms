@@ -125,7 +125,7 @@ cl_int get_device_ids(cl_device_id *device_ids, cl_uint *number_of_devices)
     return error;
 }
 
-bool read_size_of_matrix_from_file(FILE *file, int *number_of_rows, int *number_of_columns, int *number_of_nonzeroes)
+bool read_size_of_matrices_from_file(FILE *file, int *number_of_rows, int *number_of_columns, int *number_of_nonzeroes)
 {
     MM_typecode matcode;
     
@@ -149,7 +149,7 @@ bool read_size_of_matrix_from_file(FILE *file, int *number_of_rows, int *number_
         return false;
     }
 
-    /* find out size of sparse matrix .... */
+    /* find out size of sparse matrix */
     if (mm_read_mtx_crd_size(file, number_of_rows, number_of_columns, number_of_nonzeroes) != 0) 
     {
         return false;

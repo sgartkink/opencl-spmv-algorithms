@@ -28,6 +28,7 @@ int main(int argc, char *argv[])
         int number_of_rows; 
         int number_of_columns;
         int number_of_nonzeroes;
+        int strip_ptr_size;
         FILE *file;
         int i;
         cl_int *cols;
@@ -54,15 +55,17 @@ int main(int argc, char *argv[])
             return FileError;
         }
         
-        if (read_size_of_matrix_from_file(file, &number_of_rows, &number_of_columns, &number_of_nonzeroes) == false)
+        if (read_size_of_matrices_from_file(file, &number_of_rows, &number_of_columns, &number_of_nonzeroes) == false)
         {
             fclose(file);
             return FileError;
         }
+        
+        strip_ptr_size = (ceil(number_of_rows / height) + 1);
 
         cols         = (cl_int *)malloc(number_of_nonzeroes * sizeof(cl_int));
         data         = (cl_int *)malloc(number_of_nonzeroes * sizeof(cl_int));
-        strip_ptr    = (cl_int *)malloc((ceil(number_of_rows / height) + 1) * sizeof(cl_int));
+        strip_ptr    = (cl_int *)malloc(strip_ptr_size * sizeof(cl_int));
         row_in_strip = (cl_int *)malloc(number_of_nonzeroes * sizeof(cl_int));
         
         strip_ptr[0] = 0;
@@ -107,7 +110,7 @@ int main(int argc, char *argv[])
         
         fclose(file);
         
-        strip_ptr[(int)(ceil(number_of_rows / height))] = number_of_nonzeroes;
+        strip_ptr[strip_ptr_size - 1] = number_of_nonzeroes;
 
         vect = (cl_int*)malloc(sizeof(cl_int*) * number_of_columns);
         for (i = 0; i < number_of_columns; ++i) 
@@ -139,7 +142,7 @@ int main(int argc, char *argv[])
         cl_mem buffer_data         = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * number_of_nonzeroes, NULL, &error);
         cl_mem buffer_indices      = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int *) * number_of_nonzeroes, NULL, &error);
         cl_mem buffer_vect         = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * number_of_columns, NULL, &error);
-        cl_mem buffer_strip_ptr    = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * (ceil(number_of_rows / height) + 1), NULL, &error);
+        cl_mem buffer_strip_ptr    = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * strip_ptr_size, NULL, &error);
         cl_mem buffer_row_in_strip = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * number_of_nonzeroes, NULL, &error);
         cl_mem buffer_output       = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_int) * number_of_rows, NULL, &error);
         
@@ -184,8 +187,6 @@ int main(int argc, char *argv[])
         
         /* set data to kernel */
         
-        int strip_ptr_size = (ceil(number_of_rows / height) + 1);
-        
         error  = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void*)&buffer_data);
         error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), (void*)&buffer_indices);
         error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), (void*)&buffer_strip_ptr);
@@ -204,7 +205,7 @@ int main(int argc, char *argv[])
         
         error  = clEnqueueWriteBuffer(command_queue, buffer_data, CL_FALSE, 0, sizeof(cl_int) * number_of_nonzeroes, data, 0, NULL, NULL);
         error |= clEnqueueWriteBuffer(command_queue, buffer_indices, CL_FALSE, 0, sizeof(cl_int) * number_of_nonzeroes, cols, 0, NULL, NULL);
-        error |= clEnqueueWriteBuffer(command_queue, buffer_strip_ptr, CL_FALSE, 0, sizeof(cl_int) * (ceil(number_of_rows / height) + 1), strip_ptr, 0, NULL, NULL);
+        error |= clEnqueueWriteBuffer(command_queue, buffer_strip_ptr, CL_FALSE, 0, sizeof(cl_int) * strip_ptr_size, strip_ptr, 0, NULL, NULL);
         error |= clEnqueueWriteBuffer(command_queue, buffer_row_in_strip, CL_FALSE, 0, sizeof(cl_int) * number_of_nonzeroes, row_in_strip, 0, NULL, NULL);
         error |= clEnqueueWriteBuffer(command_queue, buffer_vect, CL_FALSE, 0, sizeof(cl_int) * number_of_columns, vect, 0, NULL, NULL);
         

@@ -7,7 +7,6 @@ __kernel void sigma_c(__global const int* data, __global const int* indices, __g
     {
         __local int row_size;
         row_size = (rowSizes[i + 1] - rowSizes[i]) / C;
-        __private const int current_global_row = (i * C) + j;
         int j;
         int sum = 0;
         

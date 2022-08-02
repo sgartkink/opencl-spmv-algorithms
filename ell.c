@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
             return FileError;
         }
         
-        if (read_size_of_matrix_from_file(file, &number_of_rows, &number_of_columns, &number_of_nonzeroes) == false)
+        if (read_size_of_matrices_from_file(file, &number_of_rows, &number_of_columns, &number_of_nonzeroes) == false)
         {
             fclose(file);
             return FileError;
@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
         int longest_col = 0;
         int previous_row = 1;
         int current_col_len = 0;
-        for (i = 0; i < number_of_nonzeroes; i++)
+        for (i = 0; i < number_of_nonzeroes; ++i)
         {
             int current_row;
             int current_col;
@@ -87,7 +87,17 @@ int main(int argc, char *argv[])
             }
         }
 
-        fseek(file, 0, SEEK_SET);
+        if (fseek(file, 0, SEEK_SET) != 0) 
+        {
+            perror(filename);
+            return FileError;
+        }
+        
+        if (read_size_of_matrices_from_file(file, &number_of_rows, &number_of_columns, &number_of_nonzeroes) == false)
+        {
+            fclose(file);
+            return FileError;
+        }
         
         cols = (cl_int *)malloc(longest_col * number_of_rows * sizeof(cl_int));
         data = (cl_int *)malloc(longest_col * number_of_rows * sizeof(cl_int));
@@ -95,7 +105,7 @@ int main(int argc, char *argv[])
         previous_row = 1;
         int current_index = 0;
         int nonzeroes_in_row = 0;
-        for (i = 0; i < number_of_nonzeroes; i++)
+        for (i = 0; i < number_of_nonzeroes; ++i)
         {
             int current_row;
             int current_col;
@@ -116,7 +126,6 @@ int main(int argc, char *argv[])
             {
                 long k;
                 int diff = current_row - previous_row;
-                double read_value = value;
                 previous_row = current_row;
                 
                 for (k = nonzeroes_in_row; k < (long)longest_col * (long)diff; ++k)
@@ -127,7 +136,7 @@ int main(int argc, char *argv[])
                 
                 nonzeroes_in_row = 1;
                 cols[current_index] = current_col;
-                data[current_index] = (int)read_value;
+                data[current_index] = (int)value;
                 current_index++;
             }
         }
