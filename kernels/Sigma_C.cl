@@ -1,7 +1,6 @@
 __kernel void sigma_c(__global const int* data, __global const int* indices, __global const int* vect, __global int *output,  __global const int *rowSizes, const int N, const int C)
 {
-    
-    int i;
+    size_t i;
     
     for (i = get_group_id(0); i < N; i += get_num_groups(0))
     {

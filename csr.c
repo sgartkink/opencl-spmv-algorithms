@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
         cl_int *output;
         const char *filename = "databases/cant.mtx-sorted";
         
-        size_t vector_size[1] = { 256 };
+        size_t global_work_size[1] = { 256 };
         size_t local_work_size[1] = { 1 };
         cl_uint work_dim = 1;
         

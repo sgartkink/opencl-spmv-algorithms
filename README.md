@@ -1,4 +1,4 @@
-# WIP: opencl-spmv-algorithms
+# OpenCL Sparse matrix-vector multiplication algorithms
 
 ## Implemented algorithms
 

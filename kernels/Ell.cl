@@ -1,14 +1,14 @@
-__kernel void ell(__global const int *data, __global const int *indices, __global const int *vect, __global int *output, const int N, const int rowSize, __local int *partial_data)
+__kernel void ell(__global const int *data, __global const int *indices, __global const int *vect, __global int *output, const int N, const int row_size, __local int *partial_data)
 {
     size_t i;
     
     for (i = get_group_id(0); i < N; i += get_num_groups(0))
     {
         int sum = 0;
-        const int index = rowSize * i;
-        int j;
+        const int index = row_size * i;
+        size_t j;
         
-        for (j = get_local_id(0); j < rowSize; j += get_local_size(0))
+        for (j = get_local_id(0); j < row_size; j += get_local_size(0))
         {
             int elem_idx = index + j;
             

@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
         cl_int *output;
         const char *filename = "databases/cant.mtx-sorted";
         
-        size_t vector_size[1] = { 256 };
+        size_t global_work_size[1] = { 256 };
         size_t local_work_size[1] = { 2 };
         cl_uint work_dim = 1;
         
@@ -253,7 +253,7 @@ int main(int argc, char *argv[])
         cl_event nd_range_kernel_event;
 
         clock_t start = clock();
-        error = clEnqueueNDRangeKernel(command_queue, kernel, work_dim, NULL, vector_size, local_work_size, 0, NULL, &nd_range_kernel_event);
+        error = clEnqueueNDRangeKernel(command_queue, kernel, work_dim, NULL, global_work_size, local_work_size, 0, NULL, &nd_range_kernel_event);
         clWaitForEvents(1, &nd_range_kernel_event);
         clFinish(command_queue);
         

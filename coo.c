@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
         cl_int *output;
         const char *filename = "databases/cant.mtx";
         
-        size_t vector_size[1];
+        size_t global_work_size[1];
         size_t local_work_size[1] = { 1 };
         cl_uint work_dim = 1;
         
@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
             return FileError;
         }
         
-        vector_size[0] = number_of_nonzeroes;
+        global_work_size[0] = number_of_nonzeroes;
 
         rows = (cl_int *)malloc(number_of_nonzeroes * sizeof(cl_int));
         cols = (cl_int *)malloc(number_of_nonzeroes * sizeof(cl_int));
@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
         cl_event nd_range_kernel_event;
 
         clock_t start = clock();
-        error = clEnqueueNDRangeKernel(command_queue, kernel, work_dim, NULL, vector_size, local_work_size, 0, NULL, &nd_range_kernel_event);
+        error = clEnqueueNDRangeKernel(command_queue, kernel, work_dim, NULL, global_work_size, local_work_size, 0, NULL, &nd_range_kernel_event);
         
         clWaitForEvents(1, &nd_range_kernel_event);
         clFinish(command_queue);

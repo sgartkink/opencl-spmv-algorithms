@@ -37,11 +37,11 @@ int main(int argc, char *argv[])
         cl_int *row_in_strip;
         cl_int *vect;
         cl_int *output;
-        int height = 16;
+        int height = 8;
         const char *filename = "databases/cant.mtx-sorted";
         
-        size_t vector_size[1] = { 256 };
-        size_t local_work_size[1] = { 1 };
+        size_t global_work_size[1] = { 256 };
+        size_t local_work_size[1] = { height };
         cl_uint work_dim = 1;
         
         
@@ -61,7 +61,7 @@ int main(int argc, char *argv[])
             return FileError;
         }
         
-        strip_ptr_size = (ceil(number_of_rows / height) + 1);
+        strip_ptr_size = ((int)ceil((double)number_of_rows / (double)height) + 1);
 
         cols         = (cl_int *)malloc(number_of_nonzeroes * sizeof(cl_int));
         data         = (cl_int *)malloc(number_of_nonzeroes * sizeof(cl_int));
@@ -107,11 +107,11 @@ int main(int argc, char *argv[])
                 row_in_strip[i] = current_strip_row;
             }
         }
-        
+
         fclose(file);
         
         strip_ptr[strip_ptr_size - 1] = number_of_nonzeroes;
-
+        
         vect = (cl_int*)malloc(sizeof(cl_int*) * number_of_columns);
         for (i = 0; i < number_of_columns; ++i) 
         {
@@ -187,13 +187,15 @@ int main(int argc, char *argv[])
         
         /* set data to kernel */
         
+        const int N = strip_ptr_size - 1;
+        
         error  = clSetKernelArg(kernel, 0, sizeof(cl_mem), (void*)&buffer_data);
         error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), (void*)&buffer_indices);
         error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), (void*)&buffer_strip_ptr);
         error |= clSetKernelArg(kernel, 3, sizeof(cl_mem), (void*)&buffer_row_in_strip);
         error |= clSetKernelArg(kernel, 4, sizeof(cl_mem), (void*)&buffer_vect);
         error |= clSetKernelArg(kernel, 5, sizeof(cl_mem), (void*)&buffer_output);
-        error |= clSetKernelArg(kernel, 6, sizeof(int), (void*)&strip_ptr_size);
+        error |= clSetKernelArg(kernel, 6, sizeof(int), (void*)&N);
         error |= clSetKernelArg(kernel, 7, sizeof(int), (void*)&height);
         error |= clSetKernelArg(kernel, 8, local_work_size[0] * height * sizeof(cl_int), NULL);
         
@@ -222,7 +224,7 @@ int main(int argc, char *argv[])
         cl_event nd_range_kernel_event;
 
         clock_t start = clock();
-        error = clEnqueueNDRangeKernel(command_queue, kernel, work_dim, NULL, vector_size, local_work_size, 0, NULL, &nd_range_kernel_event);
+        error = clEnqueueNDRangeKernel(command_queue, kernel, work_dim, NULL, global_work_size, local_work_size, 0, NULL, &nd_range_kernel_event);
         clWaitForEvents(1, &nd_range_kernel_event);
         clFinish(command_queue);
         
