@@ -203,6 +203,9 @@ int main(int argc, char *argv[])
         clock_gettime(CLOCK_MONOTONIC, &end_time);
         double ms = (double)(end_time.tv_nsec - start_time.tv_nsec) / 1000000 + (double)(end_time.tv_sec - start_time.tv_sec) * 1000;
         printf("Your calculations took %.2lf ms to run.\n", ms);
+        printf("Number of operations %d, PERFORMANCE %lf GFlops\n", 
+               2 * number_of_nonzeroes, 
+               (2 * number_of_nonzeroes) / ms * 1e-6);
 
         if (error != CL_SUCCESS)
         {
