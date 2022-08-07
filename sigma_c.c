@@ -39,6 +39,8 @@ int main(int argc, char *argv[])
         cl_int *vect;
         cl_int *output;
         const char *filename = "databases/cant.mtx-sorted";
+        struct timespec start_time;
+        struct timespec end_time;
         
         const int max_rows_to_check = 16;
         size_t global_work_size[1] = { 256 };
@@ -316,13 +318,13 @@ int main(int argc, char *argv[])
         
         cl_event nd_range_kernel_event;
 
-        clock_t start = clock();
+        clock_gettime(CLOCK_MONOTONIC, &start_time);
         error = clEnqueueNDRangeKernel(command_queue, kernel, work_dim, NULL, vector_size, local_work_size, 0, NULL, &nd_range_kernel_event);
         clWaitForEvents(1, &nd_range_kernel_event);
         clFinish(command_queue);
         
-        clock_t end = clock();
-        float ms = (float)(end - start) / (CLOCKS_PER_SEC / 1000);
+        clock_gettime(CLOCK_MONOTONIC, &end_time);
+        double ms = (double)(end_time.tv_nsec - start_time.tv_nsec) / 1000000 + (double)(end_time.tv_sec - start_time.tv_sec) * 1000;
         printf("Your calculations took %.2lf ms to run.\n", ms);
 
         if (error != CL_SUCCESS)

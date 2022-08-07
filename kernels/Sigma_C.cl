@@ -1,12 +1,12 @@
-__kernel void sigma_c(__global const int* data, __global const int* indices, __global const int* vect, __global int *output,  __global const int *rowSizes, const int N, const int C)
+__kernel void sigma_c(__global const int* data, __global const int* indices, __global const int* vect, __global int *output,  __global const int *row_sizes, const int N, const int C)
 {
     size_t i;
     
     for (i = get_group_id(0); i < N; i += get_num_groups(0))
     {
         __local int row_size;
-        row_size = (rowSizes[i + 1] - rowSizes[i]) / C;
-        int j;
+        row_size = (row_sizes[i + 1] - row_sizes[i]) / C;
+        size_t j;
         int sum = 0;
         
         for (j = get_local_id(0); j < C && ((i * C) + j) < N; j += get_local_size(0))
@@ -16,7 +16,7 @@ __kernel void sigma_c(__global const int* data, __global const int* indices, __g
             
             for (k = 0; k < row_size; ++k)
             {
-                int elem_idx = rowSizes[i] + k + current_row_offset;
+                int elem_idx = row_sizes[i] + k + current_row_offset;
                 
                 if (indices[elem_idx] != -1)
                 {
