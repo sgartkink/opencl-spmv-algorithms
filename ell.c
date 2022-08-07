@@ -281,6 +281,15 @@ int main(int argc, char *argv[])
             return OpenCLProgramError;
         }
         
+        if (check_result(filename, vect, output) == true)
+        {
+            printf("result is ok\n");
+        }
+        else
+        {
+            printf("result is wrong\n");
+        }
+        
 //         for (i = 0; i < number_of_rows; ++i)
 //         {
 //             printf("%d: %d\n", i, output[i]);

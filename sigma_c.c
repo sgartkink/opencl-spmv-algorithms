@@ -319,7 +319,7 @@ int main(int argc, char *argv[])
         cl_event nd_range_kernel_event;
 
         clock_gettime(CLOCK_MONOTONIC, &start_time);
-        error = clEnqueueNDRangeKernel(command_queue, kernel, work_dim, NULL, vector_size, local_work_size, 0, NULL, &nd_range_kernel_event);
+        error = clEnqueueNDRangeKernel(command_queue, kernel, work_dim, NULL, global_work_size, local_work_size, 0, NULL, &nd_range_kernel_event);
         clWaitForEvents(1, &nd_range_kernel_event);
         clFinish(command_queue);
         
@@ -333,6 +333,9 @@ int main(int argc, char *argv[])
             return OpenCLProgramError;
         }
         
+        
+        /* read output */
+        
         error = clEnqueueReadBuffer(command_queue, buffer_output, CL_TRUE, 0, sizeof(cl_int) * number_of_rows, output, 0, NULL, NULL);
         clFinish(command_queue);
         
@@ -342,13 +345,22 @@ int main(int argc, char *argv[])
             return OpenCLProgramError;
         }
         
-        
-        /* read output */
+        if (check_result(filename, vect, output) == true)
+        {
+            printf("result is ok\n");
+        }
+        else
+        {
+            printf("result is wrong\n");
+        }
         
 //         for (i = 0; i < number_of_rows; ++i)
 //         {
 //             printf("%d: %d\n", i, output[i]);
 //         }
+
+
+        /* release memory */
 
         clReleaseMemObject(buffer_data);
         clReleaseMemObject(buffer_indices);

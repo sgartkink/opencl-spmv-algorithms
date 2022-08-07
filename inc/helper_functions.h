@@ -125,6 +125,9 @@ cl_int get_device_ids(cl_device_id *device_ids, cl_uint *number_of_devices)
     return error;
 }
 
+/*!
+ * \brief File must be opened before calling this function.
+ */
 bool read_size_of_matrices_from_file(FILE *file, int *number_of_rows, int *number_of_columns, int *number_of_nonzeroes)
 {
     MM_typecode matcode;
@@ -158,4 +161,58 @@ bool read_size_of_matrices_from_file(FILE *file, int *number_of_rows, int *numbe
     return true;
 }
 
+bool check_result(const char *filename, cl_int *vect, cl_int *result)
+{
+    FILE *file;
+    int number_of_rows;
+    int number_of_columns;
+    int number_of_nonzeroes;
+    int i;
+    cl_int *data;
+    
+    file = fopen(filename, "r");
+
+    if (file == NULL) 
+    {
+        perror(filename);
+        return false;
+    }
+    
+    if (read_size_of_matrices_from_file(file, &number_of_rows, &number_of_columns, &number_of_nonzeroes) == false)
+    {
+        fclose(file);
+        return false;
+    }
+    
+    data = (cl_int *)calloc(number_of_rows, sizeof(cl_int));
+    
+    for (i = 0; i < number_of_nonzeroes; i++)
+    {
+        double value;
+        int current_row;
+        int current_col;
+        
+        fscanf(file, "%d %d %lg\n", &current_row, &current_col, &value);
+        current_row--; // adjust from 1-based to 0-based
+        current_col--; 
+        data[current_row] += (int)value * vect[current_col];
+    }
+    
+    for (i = 0; i < number_of_rows; ++i)
+    {
+        if (data[i] != result[i])
+        {
+            printf("wrong value at index %d\n", i);
+            free(data);
+            fclose(file);
+            return false;
+        }
+    }
+    
+    fclose(file);
+    free(data);
+    
+    return true;
+}
+    
 #endif /* _HELPER_FUNCTIONS_H */
