@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
         cl_int *row_indices;
         cl_int *vect;
         cl_int *output;
-        const char *filename = "databases/cant.mtx-sorted";
+        const char *filename = "databases/cant-sorted.mtx";
         struct timespec start_time;
         struct timespec end_time;
         
