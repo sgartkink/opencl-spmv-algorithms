@@ -38,6 +38,6 @@ To build with the debug option, add `DEBUG=yes` to the build command, e.g. `make
 
 ## Requirements
 
-OpenCL >= 2.2
+OpenCL >= 3.0
 
 git LFS

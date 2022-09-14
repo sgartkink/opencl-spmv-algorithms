@@ -1,4 +1,4 @@
-__kernel void cmrs(__global const int *data, __global const int *indices, __global const int *strip_ptr, __global const int *row_in_strip, __global const int *vect, __global int *output, const int N, const int height, __local int *partial_data)
+__kernel void cmrs(__global const double *data, __global const int *indices, __global const int *strip_ptr, __global const int *row_in_strip, __global const double *vect, __global double *output, const int N, const int height, __local double *partial_data)
 {
     size_t i;
     
@@ -24,7 +24,7 @@ __kernel void cmrs(__global const int *data, __global const int *indices, __glob
         for (j = get_local_id(0); j < height; j += get_local_size(0))
         {
             int k;
-            int partial_data_sum = 0;
+            double partial_data_sum = 0;
             
             for (k = j; k < get_local_size(0) * height; k += height)
             {

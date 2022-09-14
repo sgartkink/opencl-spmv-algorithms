@@ -1,11 +1,14 @@
 #ifndef _HELPER_FUNCTIONS_H
 #define _HELPER_FUNCTIONS_H
 
-#define CL_TARGET_OPENCL_VERSION 220
+#define CL_TARGET_OPENCL_VERSION 300
 #include <CL/cl.h>
+#include <math.h>
 
 #include "mmio.h"
 #include "enums.h"
+
+#define EPSILON 0.0000001
 
 char* read_source_from_cl_file(const char *file, size_t *size) 
 {
@@ -161,14 +164,14 @@ bool read_size_of_matrices_from_file(FILE *file, int *number_of_rows, int *numbe
     return true;
 }
 
-bool check_result(const char *filename, cl_int *vect, cl_int *result)
+bool check_result(const char *filename, cl_double *vect, cl_double *result)
 {
     FILE *file;
     int number_of_rows;
     int number_of_columns;
     int number_of_nonzeroes;
     int i;
-    cl_int *data;
+    cl_double *data;
     
     file = fopen(filename, "r");
 
@@ -184,7 +187,7 @@ bool check_result(const char *filename, cl_int *vect, cl_int *result)
         return false;
     }
     
-    data = (cl_int *)calloc(number_of_rows, sizeof(cl_int));
+    data = (cl_double *)calloc(number_of_rows, sizeof(cl_double));
     
     for (i = 0; i < number_of_nonzeroes; i++)
     {
@@ -195,14 +198,14 @@ bool check_result(const char *filename, cl_int *vect, cl_int *result)
         fscanf(file, "%d %d %lg\n", &current_row, &current_col, &value);
         current_row--; // adjust from 1-based to 0-based
         current_col--; 
-        data[current_row] += (int)value * vect[current_col];
+        data[current_row] += value * vect[current_col];
     }
     
     for (i = 0; i < number_of_rows; ++i)
     {
-        if (data[i] != result[i])
+        if (fabs(data[i] - result[i]) > EPSILON)
         {
-            printf("wrong value at index %d\n", i);
+            printf("wrong value at index %d: %f - %f\n", i, data[i], result[i]);
             free(data);
             fclose(file);
             return false;

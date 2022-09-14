@@ -1,4 +1,4 @@
-#define CL_TARGET_OPENCL_VERSION 220
+#define CL_TARGET_OPENCL_VERSION 300
 #include <CL/cl.h>
 #include <stdio.h>                                                                                                                                               
 #include <stdlib.h>
@@ -34,9 +34,9 @@ int main(int argc, char *argv[])
         FILE *file;
         cl_int *ptr;
         cl_int *cols;
-        cl_int *data;
-        cl_int *vect;
-        cl_int *output;
+        cl_double *data;
+        cl_double *vect;
+        cl_double *output;
         const char *filename = "databases/cant-sorted.mtx";
         struct timespec start_time;
         struct timespec end_time;
@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
 
         ptr  = (cl_int *)malloc((number_of_rows + 1) * sizeof(cl_int));
         cols = (cl_int *)malloc(number_of_nonzeroes * sizeof(cl_int));
-        data = (cl_int *)malloc(number_of_nonzeroes * sizeof(cl_int));
+        data = (cl_double *)malloc(number_of_nonzeroes * sizeof(cl_double));
 
         ptr[0] = 0;
         ptr[number_of_rows] = number_of_nonzeroes;
@@ -73,13 +73,11 @@ int main(int argc, char *argv[])
         
         for (i = 0; i < number_of_nonzeroes; i++)
         {
-            double value;
             int current_row;
             
-            fscanf(file, "%d %d %lg\n", &current_row, &cols[i], &value);
+            fscanf(file, "%d %d %lg\n", &current_row, &cols[i], &data[i]);
             current_row--; // adjust from 1-based to 0-based
             cols[i]--; 
-            data[i] = (int)value;
             
             if (current_row != previous_row)
             {
@@ -91,13 +89,13 @@ int main(int argc, char *argv[])
     
         fclose(file);
 
-        vect = (cl_int*)malloc(sizeof(cl_int*) * number_of_columns);
+        vect = (cl_double*)malloc(sizeof(cl_double*) * number_of_columns);
         for (i = 0; i < number_of_columns; ++i) 
         {
-            vect[i] = 2;
+            vect[i] = 2.0;
         }
         
-        output = (cl_int*)malloc(sizeof(cl_int) * number_of_rows);
+        output = (cl_double*)malloc(sizeof(cl_double) * number_of_rows);
         
         
         /* prepare OpenCL program */
@@ -120,9 +118,9 @@ int main(int argc, char *argv[])
         
         cl_mem buffer_ptr    = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * (number_of_rows + 1), NULL, &error);
         cl_mem buffer_col    = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * number_of_nonzeroes, NULL, &error);
-        cl_mem buffer_data   = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * number_of_nonzeroes, NULL, &error);
-        cl_mem buffer_vect   = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * number_of_columns, NULL, &error);
-        cl_mem buffer_output = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_int) * number_of_rows, NULL, &error);
+        cl_mem buffer_data   = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_double) * number_of_nonzeroes, NULL, &error);
+        cl_mem buffer_vect   = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_double) * number_of_columns, NULL, &error);
+        cl_mem buffer_output = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_double) * number_of_rows, NULL, &error);
         
         if (error != CL_SUCCESS)
         {
@@ -180,8 +178,8 @@ int main(int argc, char *argv[])
         
         error  = clEnqueueWriteBuffer(command_queue, buffer_ptr, CL_FALSE, 0, sizeof(cl_int) * (number_of_rows + 1), ptr, 0, NULL, NULL);
         error |= clEnqueueWriteBuffer(command_queue, buffer_col, CL_FALSE, 0, sizeof(cl_int) * number_of_nonzeroes, cols, 0, NULL, NULL);
-        error |= clEnqueueWriteBuffer(command_queue, buffer_data, CL_FALSE, 0, sizeof(cl_int) * number_of_nonzeroes, data, 0, NULL, NULL);
-        error |= clEnqueueWriteBuffer(command_queue, buffer_vect, CL_FALSE, 0, sizeof(cl_int) * number_of_columns, vect, 0, NULL, NULL);
+        error |= clEnqueueWriteBuffer(command_queue, buffer_data, CL_FALSE, 0, sizeof(cl_double) * number_of_nonzeroes, data, 0, NULL, NULL);
+        error |= clEnqueueWriteBuffer(command_queue, buffer_vect, CL_FALSE, 0, sizeof(cl_double) * number_of_columns, vect, 0, NULL, NULL);
         
         if (error != CL_SUCCESS)
         {
@@ -216,7 +214,7 @@ int main(int argc, char *argv[])
         
         /* read output */
         
-        error = clEnqueueReadBuffer(command_queue, buffer_output, CL_TRUE, 0, sizeof(cl_int) * number_of_rows, output, 0, NULL, NULL);
+        error = clEnqueueReadBuffer(command_queue, buffer_output, CL_TRUE, 0, sizeof(cl_double) * number_of_rows, output, 0, NULL, NULL);
         clFinish(command_queue);
         
         if (error != CL_SUCCESS)

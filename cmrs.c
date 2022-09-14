@@ -1,4 +1,4 @@
-#define CL_TARGET_OPENCL_VERSION 220
+#define CL_TARGET_OPENCL_VERSION 300
 #include <CL/cl.h>
 #include <stdio.h>                                                                                                                                               
 #include <stdlib.h>
@@ -14,6 +14,9 @@
 
 int main(int argc, char *argv[])
 {
+    (void)argc;
+    (void)argv;
+
     cl_int error;
     cl_uint number_of_devices = DEVICES_DEFAULT_SIZE;
     cl_device_id device_ids[DEVICES_DEFAULT_SIZE];
@@ -32,11 +35,11 @@ int main(int argc, char *argv[])
         FILE *file;
         int i;
         cl_int *cols;
-        cl_int *data;
         cl_int *strip_ptr;
         cl_int *row_in_strip;
-        cl_int *vect;
-        cl_int *output;
+        cl_double *data;
+        cl_double *vect;
+        cl_double *output;
         int height = 8;
         const char *filename = "databases/cant-sorted.mtx";
         struct timespec start_time;
@@ -66,7 +69,7 @@ int main(int argc, char *argv[])
         strip_ptr_size = ((int)ceil((double)number_of_rows / (double)height) + 1);
 
         cols         = (cl_int *)malloc(number_of_nonzeroes * sizeof(cl_int));
-        data         = (cl_int *)malloc(number_of_nonzeroes * sizeof(cl_int));
+        data         = (cl_double *)malloc(number_of_nonzeroes * sizeof(cl_double));
         strip_ptr    = (cl_int *)malloc(strip_ptr_size * sizeof(cl_int));
         row_in_strip = (cl_int *)malloc(number_of_nonzeroes * sizeof(cl_int));
         
@@ -79,12 +82,10 @@ int main(int argc, char *argv[])
         {
             int current_row;
             int current_col;
-            double value;
             
-            fscanf(file, "%d %d %lg\n", &current_row, &current_col, &value);
+            fscanf(file, "%d %d %lg\n", &current_row, &current_col, &data[i]);
             
             current_col--;
-            data[i] = (int)value;
             cols[i] = current_col;
             
             if (previous_row == current_row)
@@ -114,13 +115,13 @@ int main(int argc, char *argv[])
         
         strip_ptr[strip_ptr_size - 1] = number_of_nonzeroes;
         
-        vect = (cl_int*)malloc(sizeof(cl_int*) * number_of_columns);
+        vect = (cl_double*)malloc(sizeof(cl_double*) * number_of_columns);
         for (i = 0; i < number_of_columns; ++i) 
         {
-            vect[i] = 2;
+            vect[i] = 2.0;
         }
         
-        output = (cl_int*)malloc(sizeof(cl_int) * number_of_rows);
+        output = (cl_double*)malloc(sizeof(cl_double) * number_of_rows);
         
         
         /* prepare OpenCL program */
@@ -141,12 +142,12 @@ int main(int argc, char *argv[])
             return OpenCLProgramError;
         }
         
-        cl_mem buffer_data         = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * number_of_nonzeroes, NULL, &error);
+        cl_mem buffer_data         = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_double) * number_of_nonzeroes, NULL, &error);
         cl_mem buffer_indices      = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int *) * number_of_nonzeroes, NULL, &error);
-        cl_mem buffer_vect         = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * number_of_columns, NULL, &error);
+        cl_mem buffer_vect         = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_double) * number_of_columns, NULL, &error);
         cl_mem buffer_strip_ptr    = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * strip_ptr_size, NULL, &error);
         cl_mem buffer_row_in_strip = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * number_of_nonzeroes, NULL, &error);
-        cl_mem buffer_output       = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_int) * number_of_rows, NULL, &error);
+        cl_mem buffer_output       = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_double) * number_of_rows, NULL, &error);
         
         if (error != CL_SUCCESS)
         {
@@ -199,7 +200,7 @@ int main(int argc, char *argv[])
         error |= clSetKernelArg(kernel, 5, sizeof(cl_mem), (void*)&buffer_output);
         error |= clSetKernelArg(kernel, 6, sizeof(int), (void*)&N);
         error |= clSetKernelArg(kernel, 7, sizeof(int), (void*)&height);
-        error |= clSetKernelArg(kernel, 8, local_work_size[0] * height * sizeof(cl_int), NULL);
+        error |= clSetKernelArg(kernel, 8, local_work_size[0] * height * sizeof(cl_double), NULL);
         
         if (error != CL_SUCCESS)
         {
@@ -207,11 +208,11 @@ int main(int argc, char *argv[])
             return OpenCLProgramError;
         }
         
-        error  = clEnqueueWriteBuffer(command_queue, buffer_data, CL_FALSE, 0, sizeof(cl_int) * number_of_nonzeroes, data, 0, NULL, NULL);
+        error  = clEnqueueWriteBuffer(command_queue, buffer_data, CL_FALSE, 0, sizeof(cl_double) * number_of_nonzeroes, data, 0, NULL, NULL);
         error |= clEnqueueWriteBuffer(command_queue, buffer_indices, CL_FALSE, 0, sizeof(cl_int) * number_of_nonzeroes, cols, 0, NULL, NULL);
         error |= clEnqueueWriteBuffer(command_queue, buffer_strip_ptr, CL_FALSE, 0, sizeof(cl_int) * strip_ptr_size, strip_ptr, 0, NULL, NULL);
         error |= clEnqueueWriteBuffer(command_queue, buffer_row_in_strip, CL_FALSE, 0, sizeof(cl_int) * number_of_nonzeroes, row_in_strip, 0, NULL, NULL);
-        error |= clEnqueueWriteBuffer(command_queue, buffer_vect, CL_FALSE, 0, sizeof(cl_int) * number_of_columns, vect, 0, NULL, NULL);
+        error |= clEnqueueWriteBuffer(command_queue, buffer_vect, CL_FALSE, 0, sizeof(cl_double) * number_of_columns, vect, 0, NULL, NULL);
         
         if (error != CL_SUCCESS)
         {
@@ -246,7 +247,7 @@ int main(int argc, char *argv[])
         
         /* read output */
         
-        error = clEnqueueReadBuffer(command_queue, buffer_output, CL_TRUE, 0, sizeof(cl_int) * number_of_rows, output, 0, NULL, NULL);
+        error = clEnqueueReadBuffer(command_queue, buffer_output, CL_TRUE, 0, sizeof(cl_double) * number_of_rows, output, 0, NULL, NULL);
         clFinish(command_queue);
         
         if (error != CL_SUCCESS)
