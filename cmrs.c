@@ -45,8 +45,8 @@ int main(int argc, char *argv[])
         struct timespec start_time;
         struct timespec end_time;
         
-        size_t global_work_size[1] = { 256 };
-        size_t local_work_size[1] = { height };
+        size_t global_work_size[1] = { 8192 };
+        size_t local_work_size[1] = { height * 4 };
         cl_uint work_dim = 1;
         
         

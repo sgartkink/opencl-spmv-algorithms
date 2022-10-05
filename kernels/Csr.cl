@@ -2,7 +2,7 @@ __kernel void csr(__global const int *ptr, __global const int *col, __global con
 {
     size_t i;
     
-    for (i = get_global_id(0); i < N; i += get_num_groups(0)) 
+    for (i = get_global_id(0); i < N; i += get_global_size(0))
     {
         double sum = 0;
         int j;

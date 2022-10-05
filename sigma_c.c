@@ -43,7 +43,7 @@ int main(int argc, char *argv[])
         struct timespec end_time;
         
         const int max_rows_to_check = 16;
-        size_t global_work_size[1] = { 256 };
+        size_t global_work_size[1] = { 8192 };
         size_t local_work_size[1] = { max_rows_to_check };
         cl_uint work_dim = 1;
         
