@@ -164,6 +164,23 @@ bool read_size_of_matrices_from_file(FILE *file, int *number_of_rows, int *numbe
     return true;
 }
 
+void calculate_and_print_performance(double ms, int number_of_nonzeroes)
+{
+    printf("Your calculations took %.2lf ms to run.\n", ms);
+    printf("Number of operations %d, PERFORMANCE %lf GFlops\n",
+           2 * number_of_nonzeroes,
+           (2 * number_of_nonzeroes) / ms * 1e-6);
+}
+
+void calculate_and_print_speed(double ms, int number_of_nonzeroes)
+{
+    printf("GBytes transferred to processor %lf - %lf, speed %lf - %lf GB/s\n",
+           number_of_nonzeroes * sizeof(cl_double) * 1e-9,
+           (2 * number_of_nonzeroes) * sizeof(cl_double) * 1e-9,
+           number_of_nonzeroes * sizeof(cl_double) / (ms) * 1e-6,
+           (2 * number_of_nonzeroes) * sizeof(cl_double) / (ms) * 1e-6);
+}
+
 bool check_result(const char *filename, cl_double *vect, cl_double *result)
 {
     FILE *file;
