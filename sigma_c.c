@@ -124,8 +124,8 @@ int main(int argc, char *argv[])
         
         if (rows_checked != max_rows_to_check)
         {
-            cols_sum += current_col_len * rows_checked;
-            col_widths[col_widths_len - 1] = current_col_len;
+            cols_sum += longest_col * rows_checked;
+            col_widths[col_widths_len - 1] = longest_col;
         }
         
         int current_length = 0;
