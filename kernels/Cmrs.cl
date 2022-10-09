@@ -14,9 +14,8 @@ __kernel void cmrs(__global const double *data, __global const int *indices, __g
         {
             const int current_index = strip_start + j;
             const int strip_row = row_in_strip[current_index];
-            int row_index = (i * height) + strip_row;
             
-            partial_data[(get_local_id(0) * height) + strip_row] += data[current_index] * vect[row_index];
+            partial_data[(get_local_id(0) * height) + strip_row] += data[current_index] * vect[indices[current_index]];
         }
         
         barrier(CLK_LOCAL_MEM_FENCE);

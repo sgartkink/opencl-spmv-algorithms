@@ -114,11 +114,11 @@ int main(int argc, char *argv[])
         fclose(file);
         
         strip_ptr[strip_ptr_size - 1] = number_of_nonzeroes;
-        
+
         vect = (cl_double*)malloc(sizeof(cl_double) * number_of_columns);
         for (i = 0; i < number_of_columns; ++i) 
         {
-            vect[i] = 2.0;
+            vect[i] = i;
         }
         
         output = (cl_double*)malloc(sizeof(cl_double) * number_of_rows);

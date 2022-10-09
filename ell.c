@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
         vect = (cl_double*)malloc(sizeof(cl_double) * number_of_columns);
         for (i = 0; i < number_of_columns; ++i) 
         {
-            vect[i] = 2.0;
+            vect[i] = i;
         }
         
         output = (cl_double*)malloc(sizeof(cl_double) * number_of_rows);
