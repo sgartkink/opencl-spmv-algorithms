@@ -11,15 +11,8 @@ __kernel void ell(__global const double *data, __global const int *indices, __gl
         for (j = get_local_id(0); j < row_size; j += get_local_size(0))
         {
             int elem_idx = index + j;
-            
-            if (indices[elem_idx] != -1)
-            {
-                sum += data[elem_idx] * vect[indices[elem_idx]];
-            }
-            else
-            {
-                break;
-            }
+
+            sum += data[elem_idx] * vect[indices[elem_idx]];
         }
         
         partial_data[get_local_id(0)] = sum;

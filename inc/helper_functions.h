@@ -8,7 +8,7 @@
 #include "mmio.h"
 #include "enums.h"
 
-#define EPSILON 0.0000001
+#define EPSILON 0.000001
 
 char* read_source_from_cl_file(const char *file, size_t *size) 
 {
@@ -222,7 +222,7 @@ bool check_result(const char *filename, cl_double *vect, cl_double *result)
     {
         if (fabs(data[i] - result[i]) > EPSILON)
         {
-            printf("wrong value at index %d: %f - %f\n", i, data[i], result[i]);
+            printf("wrong value at index %d: expected %f - calculated %f\n", i, data[i], result[i]);
             free(data);
             fclose(file);
             return false;

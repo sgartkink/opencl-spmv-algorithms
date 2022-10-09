@@ -4,8 +4,8 @@ __kernel void cmrs(__global const double *data, __global const int *indices, __g
     
     for (i = get_group_id(0); i < N; i += get_num_groups(0))
     {
-        __local int strip_start;
-        __local int strip_end;
+        int strip_start;
+        int strip_end;
         strip_start = strip_ptr[i];
         strip_end = strip_ptr[i + 1];
         size_t j;

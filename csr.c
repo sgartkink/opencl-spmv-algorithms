@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
     
         fclose(file);
 
-        vect = (cl_double*)malloc(sizeof(cl_double*) * number_of_columns);
+        vect = (cl_double*)malloc(sizeof(cl_double) * number_of_columns);
         for (i = 0; i < number_of_columns; ++i) 
         {
             vect[i] = 2.0;

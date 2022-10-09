@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
         
         strip_ptr[strip_ptr_size - 1] = number_of_nonzeroes;
         
-        vect = (cl_double*)malloc(sizeof(cl_double*) * number_of_columns);
+        vect = (cl_double*)malloc(sizeof(cl_double) * number_of_columns);
         for (i = 0; i < number_of_columns; ++i) 
         {
             vect[i] = 2.0;
@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
         }
         
         cl_mem buffer_data         = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_double) * number_of_nonzeroes, NULL, &error);
-        cl_mem buffer_indices      = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int *) * number_of_nonzeroes, NULL, &error);
+        cl_mem buffer_indices      = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * number_of_nonzeroes, NULL, &error);
         cl_mem buffer_vect         = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_double) * number_of_columns, NULL, &error);
         cl_mem buffer_strip_ptr    = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * strip_ptr_size, NULL, &error);
         cl_mem buffer_row_in_strip = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * number_of_nonzeroes, NULL, &error);
