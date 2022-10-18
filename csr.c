@@ -11,6 +11,8 @@
 
 #define DEVICES_DEFAULT_SIZE 8
 
+void compute_using_cpu(cl_double *data, cl_double *vect, cl_int *ptr, cl_int *cols, int number_of_rows, int number_of_nonzeroes, cl_double **result);
+
 int main(int argc, char *argv[])
 {
     (void)argc;
@@ -37,6 +39,7 @@ int main(int argc, char *argv[])
         cl_double *data;
         cl_double *vect;
         cl_double *output;
+        cl_double *output_cpu;
         const char *filename = "databases/cant-sorted.mtx";
         struct timespec start_time;
         struct timespec end_time;
@@ -96,6 +99,7 @@ int main(int argc, char *argv[])
         }
         
         output = (cl_double*)malloc(sizeof(cl_double) * number_of_rows);
+        output_cpu = (cl_double*)malloc(sizeof(cl_double) * number_of_rows);
         
         
         /* prepare OpenCL program */
@@ -237,6 +241,20 @@ int main(int argc, char *argv[])
 //         }
 
 
+        /* CPU */
+
+        compute_using_cpu(data, vect, ptr, cols, number_of_rows, number_of_nonzeroes, &output_cpu);
+
+        if (check_result(filename, vect, output_cpu) == true)
+        {
+            printf("cpu result is ok\n");
+        }
+        else
+        {
+            printf("cpu result is wrong\n");
+        }
+
+
         /* release memory */
 
         clReleaseMemObject(buffer_ptr);
@@ -249,6 +267,7 @@ int main(int argc, char *argv[])
         free(data);
         free(vect);
         free(output);
+        free(output_cpu);
         free(source);
         
         clFlush(command_queue);
@@ -261,4 +280,30 @@ int main(int argc, char *argv[])
     }
     
     return Success;
+}
+
+void compute_using_cpu(cl_double *data, cl_double *vect, cl_int *ptr, cl_int *cols, int number_of_rows, int number_of_nonzeroes, cl_double **result)
+{
+    int i;
+    struct timespec start_time;
+    struct timespec end_time;
+
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+
+    #pragma omp parallel for shared(data, vect, ptr, cols, number_of_rows, result) private(i)
+    for (i = 0; i < number_of_rows; ++i)
+    {
+        int j;
+
+        for (j = ptr[i]; j < ptr[i+1]; ++j)
+        {
+            (*result)[i] += data[j] * vect[cols[j]];
+        }
+    }
+
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    double ms = (double)(end_time.tv_nsec - start_time.tv_nsec) / 1000000 + (double)(end_time.tv_sec - start_time.tv_sec) * 1000;
+
+    printf("\nCPU calculations\n");
+    calculate_and_print_performance(ms, number_of_nonzeroes);
 }

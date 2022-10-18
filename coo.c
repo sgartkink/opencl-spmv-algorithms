@@ -229,6 +229,8 @@ int main(int argc, char *argv[])
 //             printf("%d: %d\n", i, output[i]);
 //         }
 
+
+        /* CPU */
         
         compute_using_cpu(data, vect, rows, cols, number_of_nonzeroes, &output_cpu);
 
@@ -241,6 +243,7 @@ int main(int argc, char *argv[])
         {
             printf("cpu result is wrong\n");
         }
+
 
         /* release memory */
 
