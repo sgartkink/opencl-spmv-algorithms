@@ -41,3 +41,5 @@ To build with the debug option, add `DEBUG=yes` to the build command, e.g. `make
 OpenCL >= 3.0
 
 git LFS
+
+OpenMP

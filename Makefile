@@ -15,7 +15,7 @@ HEADERS = $(INC_DIR)/helper_functions.h $(INC_DIR)/enums.h
 
 INCLUDES = -I$(MMIO_DIR) -I$(INC_DIR)
 LDFLAGS  = -L$(LIB_PATH) -l:$(LIB_NAME)
-CFLAGS   = -Wall -Werror -Wshadow -lm
+CFLAGS   = -Wall -Werror -Wshadow -lm -fopenmp
 
 ifeq ($(DEBUG), yes)
 	CFLAGS += -g
