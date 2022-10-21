@@ -1,9 +1,9 @@
-__kernel void sigma_c(__global const double* data, __global const int* indices, __global const double* vect, __global double *output,  __global const int *row_sizes, const int C)
+__kernel void sigma_c(__global const double* data, __global const int* indices, __global const double* vect, __global double *output,  __global const int *row_indices, const int C)
 {
     size_t i = get_group_id(0);
 
-    const int index_offset = row_sizes[i];
-    const int row_size = row_sizes[i + 1];
+    const int index_offset = row_indices[i];
+    const int row_size = row_indices[i + 1];
 
     size_t local_id = get_local_id(0);
     size_t j;

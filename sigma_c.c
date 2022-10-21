@@ -31,13 +31,13 @@ int main(int argc, char *argv[])
         int number_of_rows;
         int number_of_columns;
         int number_of_nonzeroes;
-        int col_widths_len;
+        int number_of_slices;
+        int row_indices_size;
         int number_of_groups;
         int i;
         FILE *file;
         cl_int *cols;
         cl_double *data;
-        cl_int *col_widths;
         cl_int *row_indices;
         cl_double *vect;
         cl_double *output;
@@ -73,22 +73,23 @@ int main(int argc, char *argv[])
 
         if (number_of_rows % max_rows_to_check == 0)
         {
-            col_widths_len = number_of_rows / max_rows_to_check;
+            number_of_slices = number_of_rows / max_rows_to_check;
         }
         else
         {
-            col_widths_len = (number_of_rows / max_rows_to_check) + 1;
+            number_of_slices = (number_of_rows / max_rows_to_check) + 1;
         }
 
-        col_widths     = (cl_int *)malloc(col_widths_len * sizeof(cl_int));
-        row_indices    = (cl_int *)malloc((col_widths_len + 1) * sizeof(cl_int));
+        row_indices_size = number_of_slices + 1;
+        row_indices    = (cl_int *)malloc(row_indices_size * sizeof(cl_int));
+        row_indices[0] = 0;
 
         int longest_col = 0;
         int previous_row = 0;
         int current_col_len = 0;
         int rows_checked = 0;
-        int col_widths_index = 0;
-        long cols_sum = 0;
+        int row_indices_index = 0;
+        long elements_sum = 0;
         for (i = 0; i < number_of_nonzeroes; i++)
         {
             int current_row;
@@ -114,10 +115,10 @@ int main(int argc, char *argv[])
 
                 if (rows_checked == max_rows_to_check)
                 {
-                    col_widths[col_widths_index] = longest_col;
-                    cols_sum += longest_col * max_rows_to_check;
+                    elements_sum += longest_col * max_rows_to_check;
+                    row_indices[row_indices_index + 1] = elements_sum;
                     longest_col = 1;
-                    col_widths_index++;
+                    row_indices_index++;
                     rows_checked = 0;
                 }
 
@@ -128,17 +129,8 @@ int main(int argc, char *argv[])
 
         if (rows_checked != max_rows_to_check)
         {
-            cols_sum += longest_col * max_rows_to_check;
-            col_widths[col_widths_len - 1] = longest_col;
-        }
-
-        int current_length = 0;
-        row_indices[0] = 0;
-
-        for (i = 0; i < col_widths_len; ++i)
-        {
-            current_length += col_widths[i] * max_rows_to_check;
-            row_indices[i+1] = current_length;
+            elements_sum += longest_col * max_rows_to_check;
+            row_indices[number_of_slices] = elements_sum;
         }
 
         if (fseek(file, 0, SEEK_SET) != 0)
@@ -153,16 +145,12 @@ int main(int argc, char *argv[])
             return FileError;
         }
 
-        cols_sum = current_length;
-
-        cols = (cl_int *)malloc(cols_sum * sizeof(cl_int));
-        memset(cols, 0, cols_sum * sizeof(cl_int));
-        data = (cl_double *)malloc(cols_sum * sizeof(cl_double));
-        memset(data, 0, cols_sum * sizeof(cl_double));
+        cols = (cl_int *)calloc(elements_sum, sizeof(cl_int));
+        data = (cl_double *)calloc(elements_sum, sizeof(cl_double));
 
         previous_row = 0;
         rows_checked = 0;
-        int row_indices_index = 0;
+        row_indices_index = 0;
         int start_index = row_indices[row_indices_index];
         int current_index = start_index;
 
@@ -192,7 +180,6 @@ int main(int argc, char *argv[])
                     rows_checked = 0;
                     row_indices_index++;
                     start_index = row_indices[row_indices_index];
-                    current_index = start_index;
                 }
                 else
                 {
@@ -238,10 +225,10 @@ int main(int argc, char *argv[])
             return OpenCLProgramError;
         }
 
-        cl_mem buffer_data       = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_double) * cols_sum, NULL, &error);
-        cl_mem buffer_indices    = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * cols_sum, NULL, &error);
+        cl_mem buffer_data       = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_double) * elements_sum, NULL, &error);
+        cl_mem buffer_indices    = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * elements_sum, NULL, &error);
         cl_mem buffer_vect       = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_double) * number_of_columns, NULL, &error);
-        cl_mem buffer_col_widths = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * (col_widths_len + 1), NULL, &error);
+        cl_mem buffer_row_indices = clCreateBuffer(context, CL_MEM_READ_ONLY, sizeof(cl_int) * row_indices_size, NULL, &error);
         cl_mem buffer_output     = clCreateBuffer(context, CL_MEM_WRITE_ONLY, sizeof(cl_double) * (number_of_groups * max_rows_to_check), NULL, &error);
 
         if (error != CL_SUCCESS)
@@ -289,7 +276,7 @@ int main(int argc, char *argv[])
         error |= clSetKernelArg(kernel, 1, sizeof(cl_mem), (void*)&buffer_indices);
         error |= clSetKernelArg(kernel, 2, sizeof(cl_mem), (void*)&buffer_vect);
         error |= clSetKernelArg(kernel, 3, sizeof(cl_mem), (void*)&buffer_output);
-        error |= clSetKernelArg(kernel, 4, sizeof(cl_mem), (void*)&buffer_col_widths);
+        error |= clSetKernelArg(kernel, 4, sizeof(cl_mem), (void*)&buffer_row_indices);
         error |= clSetKernelArg(kernel, 5, sizeof(int),    (void*)&max_rows_to_check);
 
         if (error != CL_SUCCESS)
@@ -298,10 +285,10 @@ int main(int argc, char *argv[])
             return OpenCLProgramError;
         }
 
-        error  = clEnqueueWriteBuffer(command_queue, buffer_data, CL_FALSE, 0, sizeof(cl_double) * cols_sum, data, 0, NULL, NULL);
-        error |= clEnqueueWriteBuffer(command_queue, buffer_indices, CL_FALSE, 0, sizeof(cl_int) * cols_sum, cols, 0, NULL, NULL);
+        error  = clEnqueueWriteBuffer(command_queue, buffer_data, CL_FALSE, 0, sizeof(cl_double) * elements_sum, data, 0, NULL, NULL);
+        error |= clEnqueueWriteBuffer(command_queue, buffer_indices, CL_FALSE, 0, sizeof(cl_int) * elements_sum, cols, 0, NULL, NULL);
         error |= clEnqueueWriteBuffer(command_queue, buffer_vect, CL_FALSE, 0, sizeof(cl_double) * number_of_columns, vect, 0, NULL, NULL);
-        error |= clEnqueueWriteBuffer(command_queue, buffer_col_widths, CL_FALSE, 0, sizeof(cl_int) * (col_widths_len + 1), row_indices, 0, NULL, NULL);
+        error |= clEnqueueWriteBuffer(command_queue, buffer_row_indices, CL_FALSE, 0, sizeof(cl_int) * row_indices_size, row_indices, 0, NULL, NULL);
 
         if (error != CL_SUCCESS)
         {
@@ -364,11 +351,10 @@ int main(int argc, char *argv[])
         clReleaseMemObject(buffer_data);
         clReleaseMemObject(buffer_indices);
         clReleaseMemObject(buffer_vect);
-        clReleaseMemObject(buffer_col_widths);
+        clReleaseMemObject(buffer_row_indices);
 
         free(cols);
         free(data);
-        free(col_widths);
         free(row_indices);
         free(vect);
         free(output);
