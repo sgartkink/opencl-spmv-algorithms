@@ -129,6 +129,11 @@ int main(int argc, char *argv[])
 
         if (rows_checked != max_rows_to_check)
         {
+            if (current_col_len > longest_col)
+            {
+                longest_col = current_col_len;
+            }
+
             elements_sum += longest_col * max_rows_to_check;
             row_indices[number_of_slices] = elements_sum;
         }
