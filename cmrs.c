@@ -81,12 +81,10 @@ int main(int argc, char *argv[])
         for (i = 0; i < number_of_nonzeroes; i++)
         {
             int current_row;
-            int current_col;
             
-            fscanf(file, "%d %d %lg\n", &current_row, &current_col, &data[i]);
-            
-            current_col--;
-            cols[i] = current_col;
+            fscanf(file, "%d %d %lg\n", &current_row, &cols[i], &data[i]);
+
+            cols[i]--;
             
             if (previous_row == current_row)
             {

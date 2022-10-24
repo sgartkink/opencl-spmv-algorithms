@@ -1,4 +1,4 @@
-__kernel void sigma_c(__global const double* data, __global const int* indices, __global const double* vect, __global double *output,  __global const int *row_indices, const int C)
+__kernel void sigma_c(__global const double* data, __global const int* indices, __global const double* vect, __global double *output, __global const int *row_indices, const int C)
 {
     size_t i = get_group_id(0);
 

@@ -6,32 +6,32 @@ __kernel void ell(__global const double *data, __global const int *indices, __gl
     {
         double sum = 0;
         const int index = row_size * i;
+        unsigned int local_id = get_local_id(0);
+        unsigned int step;
         size_t j;
         
-        for (j = get_local_id(0); j < row_size; j += get_local_size(0))
+        for (j = local_id; j < row_size; j += get_local_size(0))
         {
             int elem_idx = index + j;
 
             sum += data[elem_idx] * vect[indices[elem_idx]];
         }
         
-        partial_data[get_local_id(0)] = sum;
+        partial_data[local_id] = sum;
         
         barrier(CLK_LOCAL_MEM_FENCE);
-        
-        if (get_local_id(0) == 0)
+
+        for (step = get_local_size(0) / 2; step > 0; step >>= 1)
         {
-            double partial_data_sum = 0;
-            for (int k = get_local_id(0); k < get_local_size(0); ++k)
+            if (local_id < step)
             {
-                partial_data_sum += partial_data[k];
+                partial_data[local_id] += partial_data[local_id + step];
             }
-            partial_data[0] = partial_data_sum;
+
+            barrier(CLK_LOCAL_MEM_FENCE);
         }
         
-        barrier(CLK_LOCAL_MEM_FENCE);
-        
-        if (get_local_id(0) == 0)
+        if (local_id == 0)
         {
             output[i] = partial_data[0];
         }
