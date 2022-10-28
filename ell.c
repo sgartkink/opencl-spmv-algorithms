@@ -5,6 +5,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <time.h>
+#include <limits.h>
 
 #include "helper_functions.h"
 #include "enums.h"
@@ -62,8 +63,10 @@ int main(int argc, char *argv[])
         }
 
         int longest_col = 0;
+        int shortest_col = INT_MAX;
         int previous_row = 1;
         int current_col_len = 0;
+        int sum_of_col_len = 0;
         for (i = 0; i < number_of_nonzeroes; ++i)
         {
             int current_row;
@@ -84,10 +87,18 @@ int main(int argc, char *argv[])
                 {
                     longest_col = current_col_len;
                 }
+                if (current_col_len < shortest_col)
+                {
+                    shortest_col = current_col_len;
+                }
+                sum_of_col_len += current_col_len;
                 
                 current_col_len = 1;
             }
         }
+
+        double average_col_len = (double)sum_of_col_len / (double)number_of_rows;
+        printf("average column length %lf, shortest col %d, longest col %d\n", average_col_len, shortest_col, longest_col);
 
         if (fseek(file, 0, SEEK_SET) != 0) 
         {
