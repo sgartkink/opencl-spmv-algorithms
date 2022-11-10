@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
         struct timespec end_time;
         
         size_t global_work_size[1];
-        size_t local_work_size[1] = { 1 };
+        size_t local_work_size[1] = { 64 };
         cl_uint work_dim = 1;
         
         
@@ -66,6 +66,11 @@ int main(int argc, char *argv[])
         }
         
         global_work_size[0] = number_of_nonzeroes;
+
+        while (global_work_size[0] % local_work_size[0] != 0)
+        {
+            global_work_size[0]++;
+        }
 
         rows = (cl_int *)malloc(number_of_nonzeroes * sizeof(cl_int));
         cols = (cl_int *)malloc(number_of_nonzeroes * sizeof(cl_int));
