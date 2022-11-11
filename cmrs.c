@@ -12,6 +12,8 @@
 
 #define DEVICES_DEFAULT_SIZE 8
 
+void compute_using_cpu(cl_double *data, cl_double *vect, cl_int *strip_ptr, cl_int *row_in_strip, cl_int *cols, int strip_ptr_size, int number_of_nonzeroes, int height, cl_double **result);
+
 int main(int argc, char *argv[])
 {
     (void)argc;
@@ -40,6 +42,7 @@ int main(int argc, char *argv[])
         cl_double *data;
         cl_double *vect;
         cl_double *output;
+        cl_double *output_cpu;
         int height = 8;
         const char *filename = "databases/cant-sorted.mtx";
         struct timespec start_time;
@@ -120,6 +123,7 @@ int main(int argc, char *argv[])
         }
         
         output = (cl_double*)malloc(sizeof(cl_double) * number_of_rows);
+        output_cpu = (cl_double*)malloc(sizeof(cl_double) * number_of_rows);
         
         
         /* prepare OpenCL program */
@@ -268,6 +272,20 @@ int main(int argc, char *argv[])
 //         }
 
 
+        /* CPU */
+
+        compute_using_cpu(data, vect, strip_ptr, row_in_strip, cols, strip_ptr_size, number_of_nonzeroes, height, &output_cpu);
+
+        if (check_result(filename, vect, output_cpu) == true)
+        {
+            printf("cpu result is ok\n");
+        }
+        else
+        {
+            printf("cpu result is wrong\n");
+        }
+
+
         /* release memory */
 
         clReleaseMemObject(buffer_data);
@@ -283,6 +301,7 @@ int main(int argc, char *argv[])
         free(row_in_strip);
         free(vect);
         free(output);
+        free(output_cpu);
         free(source);
         
         clFlush(command_queue);
@@ -295,4 +314,32 @@ int main(int argc, char *argv[])
     }
     
     return Success;
+}
+
+void compute_using_cpu(cl_double *data, cl_double *vect, cl_int *strip_ptr, cl_int *row_in_strip, cl_int *cols, int strip_ptr_size, int number_of_nonzeroes, int height, cl_double **result)
+{
+    int i;
+    struct timespec start_time;
+    struct timespec end_time;
+
+    clock_gettime(CLOCK_MONOTONIC, &start_time);
+
+    #pragma omp parallel for shared(data, vect, strip_ptr, strip_ptr_size, row_in_strip, cols, result) private(i)
+    for (i = 0; i < strip_ptr_size - 1; ++i)
+    {
+        const int row_index = i * height;
+        const int end_index = strip_ptr[i + 1];
+        int current_index;
+
+        for (current_index = strip_ptr[i]; current_index < end_index; ++current_index)
+        {
+            (*result)[row_index + row_in_strip[current_index]] += data[current_index] * vect[cols[current_index]];
+        }
+    }
+
+    clock_gettime(CLOCK_MONOTONIC, &end_time);
+    double ms = (double)(end_time.tv_nsec - start_time.tv_nsec) / 1000000 + (double)(end_time.tv_sec - start_time.tv_sec) * 1000;
+
+    printf("\nCPU calculations\n");
+    calculate_and_print_performance(ms, number_of_nonzeroes);
 }
